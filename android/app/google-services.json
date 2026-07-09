@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "446423568154",
+    "project_id": "rpi-sav-app",
+    "storage_bucket": "rpi-sav-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:446423568154:android:4aeb439e7fb8eef51fe6a3",
+        "android_client_info": {
+          "package_name": "com.rpimenuiserie.rpi_sav_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCC6wp58J8I0DEQoPHgePwNjswZ2vmqZLk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

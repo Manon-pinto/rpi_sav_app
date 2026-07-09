@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyC82qUdtnpYh8HNmBPFqGDSjgFSXbLyh3g</string>
+	<key>GCM_SENDER_ID</key>
+	<string>446423568154</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.rpimenuiserie.rpiSavApp</string>
+	<key>PROJECT_ID</key>
+	<string>rpi-sav-app</string>
+	<key>STORAGE_BUCKET</key>
+	<string>rpi-sav-app.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:446423568154:ios:550f29cba0b3f31c1fe6a3</string>
+</dict>
+</plist>
