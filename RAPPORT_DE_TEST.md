@@ -116,21 +116,41 @@ admin. Appli déployée sur https://rpi-sav-app.web.app.
 | 6.5 | Onglet Comptes | Dernière connexion par compte, avec version de l'app utilisée |
 | 6.6 | Provoquer une erreur (ex. couper le réseau puis planifier un SAV) | L'erreur apparaît dans l'onglet Erreurs après reconnexion |
 
+## 7. Icône et apparence
+
+| # | Étape | Résultat attendu |
+|---|-------|-------------------|
+| 7.1 | Regarder l'onglet du navigateur | Le favicon est le logo rond RPI Menuiserie (pas le logo Flutter par défaut), net |
+| 7.2 | Regarder le logo dans la barre du haut de l'app (toutes les pages) | Logo net, pas flou, même à un petit affichage |
+| 7.3 | Regarder le logo sur l'écran de connexion | Logo net |
+| 7.4 | "Ajouter à l'écran d'accueil" depuis un téléphone (PWA) | L'icône ajoutée est le logo RPI, pas l'icône Flutter |
+
+## 8. CI/CD (GitHub Actions)
+
+| # | Étape | Résultat attendu |
+|---|-------|-------------------|
+| 8.1 | Pousser un commit sur `master` | Un run se déclenche automatiquement sur https://github.com/Manon-pinto/rpi_sav_app/actions |
+| 8.2 | Étape "Analyze & test" | `flutter analyze` et `flutter test` passent |
+| 8.3 | Étape "Deploy to Firebase Hosting" | Se déclenche seulement après le succès des tests, déploie sur https://rpi-sav-app.web.app |
+| 8.4 | Casser volontairement un test (`flutter test`) sur une branche puis pousser | Le run échoue à l'étape tests, le déploiement ne se déclenche pas |
+
 ## Résultats des vérifications automatiques
 
-Exécutées le 15/07/2026 par Claude, avant la session de test manuel.
+Exécutées le 15/07/2026 par Claude.
 
 | Vérification | Commande | Résultat |
 |---|---|---|
 | Analyse statique | `flutter analyze` | ✅ Aucun problème détecté |
-| Tests unitaires | `flutter test` | ✅ 1/1 test passé (`SavColumns.indexOf convertit les lettres de colonnes`) |
+| Tests unitaires | `flutter test` | ✅ 12/12 tests passés (colonnes Sheet + logique `SavIntervention`) |
 | Build web release | `flutter build web --release` | ✅ Compile sans erreur |
-| Déploiement Firebase Hosting | `firebase deploy --only hosting` | ✅ En ligne sur https://rpi-sav-app.web.app |
+| Déploiement Firebase Hosting | via GitHub Actions (Workload Identity Federation) | ✅ En ligne sur https://rpi-sav-app.web.app |
+| CI/CD bout en bout | push → tests → build → déploiement | ✅ Vérifié sur plusieurs commits successifs |
 
-Ces vérifications couvrent la compilation et la logique unitaire testée,
-**pas** le comportement réel dans un navigateur (connexion Google, écriture
-Sheets, création calendrier) — les sections 1 à 6 ci-dessus doivent être
-testées manuellement par un humain connecté avec un vrai compte.
+Ces vérifications couvrent la compilation, la logique unitaire testée et le
+pipeline de déploiement, **pas** le comportement réel dans un navigateur
+(connexion Google, écriture Sheets, création calendrier) — les sections 1 à
+7 ci-dessus doivent être testées manuellement par un humain connecté avec un
+vrai compte.
 
 ## Résultats des sessions de test manuel
 
