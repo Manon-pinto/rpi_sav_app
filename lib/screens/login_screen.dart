@@ -43,6 +43,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 Image.asset(
                   'assets/logo premiere page.png',
                   height: 96,
+                  cacheHeight: (96 * MediaQuery.devicePixelRatioOf(context))
+                      .round(),
+                  filterQuality: FilterQuality.high,
                   errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.error_outline,
                     color: Colors.red,

@@ -9,12 +9,23 @@ class RpiAppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Le fichier source fait ~2500px et n'est affiché qu'à 32px de haut :
+    // sans cacheHeight, le moteur de rendu web laisse le navigateur mettre
+    // à l'échelle l'image déjà décodée en pleine résolution, ce qui rend
+    // les traits fins du logo flous. En forçant le décodage à la taille
+    // d'affichage réelle (en tenant compte du devicePixelRatio), le
+    // rendu reste net.
+    const displayHeight = 32.0;
+    final cacheHeight =
+        (displayHeight * MediaQuery.devicePixelRatioOf(context)).round();
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Image.asset(
           'assets/RPI LOGO base line noir.png',
-          height: 32,
+          height: displayHeight,
+          cacheHeight: cacheHeight,
+          filterQuality: FilterQuality.high,
           errorBuilder: (context, error, stackTrace) => const Icon(
             Icons.error_outline,
             color: Colors.red,
