@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/app_config.dart';
 import '../models/sav_intervention.dart';
 import '../theme/app_colors.dart';
 import '../widgets/rpi_app_bar_title.dart';
@@ -20,7 +19,7 @@ class SavConfirmationScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Ajoutée au Google Calendar de Joël',
+              'Le calendrier de Joël sera mis à jour automatiquement depuis le Sheet',
               style: TextStyle(color: AppColors.muted),
             ),
             const SizedBox(height: 16),
@@ -57,17 +56,6 @@ class SavConfirmationScreen extends StatelessWidget {
                       ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Chip(
-                label: Text(
-                  'Etat SAV mis à jour : ${SavColumns.etatPretPourIntervention}',
-                ),
-                backgroundColor: AppColors.primary.withValues(alpha: 0.10),
-                labelStyle: const TextStyle(color: AppColors.primary),
               ),
             ),
             const SizedBox(height: 24),

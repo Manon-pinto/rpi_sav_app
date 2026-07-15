@@ -161,15 +161,11 @@ class GoogleSheetsService {
             [intervention.heureIntervention],
           ],
         ),
-        // Le SAV n'est vraiment "prêt pour intervention" que si une date et
-        // une heure ont été choisies ; sinon on laisse l'Etat SAV tel quel.
-        if (intervention.isPlanned)
-          sheets.ValueRange(
-            range: "'$kSavSheetName'!${SavColumns.etatSav}$rowIndex",
-            values: [
-              [SavColumns.etatPretPourIntervention],
-            ],
-          ),
+        // La colonne "Etat SAV" (U) est protégée dans le Sheet et son
+        // écriture est rejetée par l'API pour ce compte (l'ensemble du
+        // batchUpdate échoue si une seule plage est refusée) : on ne la
+        // touche plus depuis l'app, elle reste gérée manuellement/par une
+        // automatisation côté Sheet.
       ];
 
       await api.spreadsheets.values.batchUpdate(
@@ -268,7 +264,11 @@ class GoogleSheetsService {
     sheets.SheetsApi api,
     SavIntervention intervention,
   ) async {
-    if (intervention.idGoogle.startsWith('row-')) {
+    // Sans ID_GOOGLE exploitable, impossible de relocaliser la ligne de
+    // façon fiable (une valeur vide matcherait la première ligne vide de la
+    // colonne) : on se fie au numéro de ligne lu au chargement de la liste.
+    if (intervention.idGoogle.isEmpty ||
+        intervention.idGoogle.startsWith('row-')) {
       return intervention.rowIndex;
     }
     final headerResponse = await api.spreadsheets.values.get(
@@ -287,7 +287,7 @@ class GoogleSheetsService {
     final columnValues = columnResponse.values ?? const [];
     for (var i = 0; i < columnValues.length; i++) {
       final value = columnValues[i].isEmpty ? '' : '${columnValues[i].first}';
-      if (value == intervention.idGoogle) {
+      if (value.isNotEmpty && value == intervention.idGoogle) {
         return i + 2;
       }
     }

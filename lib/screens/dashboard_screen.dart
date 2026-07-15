@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../data/activity_logger.dart';
 import '../data/firebase_auth_service.dart';
 import '../data/google_sheets_service.dart';
 import '../models/sav_intervention.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_layout.dart';
 import '../widgets/rpi_app_bar_title.dart';
+import 'errors_screen.dart';
 import 'sav_list_screen.dart';
 import 'sav_planning_screen.dart';
 
@@ -30,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _future = _load();
+    ActivityLogger.heartbeat();
   }
 
   Future<List<SavIntervention>> _load() async {
@@ -38,8 +41,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load());
-    await _future;
+    final future = _load();
+    setState(() {
+      _future = future;
+    });
+    await future;
   }
 
   @override
@@ -52,6 +58,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const RpiAppBarTitle('Tableau de bord'),
         actions: [
+          if (widget.authService.currentUser?.email == 'admin@rpimenuiserie.com')
+            IconButton(
+              tooltip: 'Erreurs techniques',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ErrorsScreen()),
+              ),
+              icon: const Icon(Icons.bug_report_outlined),
+            ),
           IconButton(
             onPressed: () => widget.authService.signOut(),
             icon: const Icon(Icons.logout),

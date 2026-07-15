@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../data/activity_logger.dart';
 import '../data/app_config.dart';
+import '../data/error_logger.dart';
 import '../data/firebase_auth_service.dart';
-import '../data/google_calendar_service.dart';
 import '../data/google_sheets_service.dart';
 import '../models/sav_intervention.dart';
 import '../theme/app_colors.dart';
@@ -27,7 +28,6 @@ class SavPlanningScreen extends StatefulWidget {
 }
 
 class _SavPlanningScreenState extends State<SavPlanningScreen> {
-  final _calendarService = GoogleCalendarService();
   final _dureeController = TextEditingController();
   final _vehiculeController = TextEditingController();
   final _renfortController = TextEditingController();
@@ -87,8 +87,7 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
 
   Future<void> _confirm() async {
     // La date/heure est optionnelle : Joël peut enregistrer la durée, le
-    // véhicule et le renfort sans encore fixer de rendez-vous. Dans ce cas,
-    // aucun événement n'est créé sur Calendar (voir message après l'écriture).
+    // véhicule et le renfort sans encore fixer de rendez-vous.
     final hasDate = _date != null && _heure != null;
 
     setState(() {
@@ -97,11 +96,16 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
     });
 
     try {
-      final dateLabel = hasDate
+      // La date et l'heure sont écrites indépendamment l'une de l'autre :
+      // Clara peut fixer la date avant l'heure (ou l'inverse) sans que la
+      // première saisie soit effacée. Seul le duo complet déclenche le
+      // statut "Prêt pour intervention" (le Sheet gère seul l'ajout au
+      // calendrier à partir de ces colonnes).
+      final dateLabel = _date != null
           ? DateFormat('dd/MM/yyyy').format(_date!)
           : '';
-      final heureLabel = hasDate
-          ? '${_heure!.hour.toString().padLeft(2, '0')}:${_heure!.minute.toString().padLeft(2, '0')}'
+      final heureLabel = _heure != null
+          ? '${_heure!.hour.toString().padLeft(2, '0')}h${_heure!.minute.toString().padLeft(2, '0')}'
           : '';
 
       final planned = widget.intervention.copyWithPlanning(
@@ -113,7 +117,26 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
       );
 
       final token = await widget.authService.requestDataAccessToken();
-      await widget.sheetsService.writePlanning(token, planned);
+      try {
+        await widget.sheetsService.writePlanning(token, planned);
+      } catch (error, stack) {
+        // Distinct des erreurs Flutter globales : une erreur Sheets ici est
+        // rattrapée localement (l'utilisateur voit `_error`) et ne remonte
+        // donc pas via FlutterError.onError — on la logue explicitement.
+        ErrorLogger.log(
+          error.toString(),
+          stack: stack,
+          context: 'writePlanning:sheets',
+        );
+        rethrow;
+      }
+      ActivityLogger.logEvent(
+        'sav_planned',
+        details: {
+          'numeroSav': planned.numeroSav,
+          'hasDate': hasDate,
+        },
+      );
 
       if (!hasDate) {
         if (!mounted) return;
@@ -122,10 +145,9 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
           builder: (context) => AlertDialog(
             title: const Text('Enregistré sans rendez-vous'),
             content: const Text(
-              'Durée, véhicule et renfort ont été enregistrés. Aucun '
-              'rendez-vous n\'a été ajouté au calendrier car aucune date '
-              'n\'a été choisie. Le SAV reste dans la liste "à planifier" '
-              'jusqu\'à ce qu\'une date soit fixée.',
+              'Durée, véhicule et renfort ont été enregistrés. Le SAV reste '
+              'dans la liste "à planifier" jusqu\'à ce qu\'une date soit '
+              'fixée.',
             ),
             actions: [
               TextButton(
@@ -139,8 +161,6 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
         Navigator.of(context).pop(true);
         return;
       }
-
-      await _calendarService.createInterventionEvent(token, planned);
 
       if (!mounted) return;
       final result = await Navigator.of(context).push<bool>(

@@ -15,6 +15,13 @@ class FirebaseAuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   Future<void>? _googleSignInInit;
 
+  // Les jetons d'accès Google (Sheets/Calendar) sont valables environ 1h.
+  // Sans ce cache, chaque appel à requestDataAccessToken() rouvrait une
+  // popup de connexion complète — l'équipe devait se reconnecter à chaque
+  // action dans l'app.
+  String? _cachedAccessToken;
+  DateTime? _cachedAccessTokenExpiry;
+
   /// Scopes nécessaires pour lire/écrire le Sheet "SAV diffus" et créer des
   /// événements sur le Google Calendar de Joël.
   static const workspaceDataScopes = <String>[
@@ -91,8 +98,24 @@ class FirebaseAuthService {
 
   /// Access token OAuth avec les scopes Sheets + Calendar, utilisé pour
   /// appeler directement les API Google depuis [GoogleSheetsService] et
-  /// [GoogleCalendarService].
+  /// [GoogleCalendarService]. Mis en cache ~50 min (durée de vie réelle
+  /// ~1h) pour éviter de redemander une connexion à chaque action.
   Future<String> requestDataAccessToken() async {
+    final cachedToken = _cachedAccessToken;
+    final cachedExpiry = _cachedAccessTokenExpiry;
+    if (cachedToken != null &&
+        cachedExpiry != null &&
+        DateTime.now().isBefore(cachedExpiry)) {
+      return cachedToken;
+    }
+
+    final token = await _fetchFreshDataAccessToken();
+    _cachedAccessToken = token;
+    _cachedAccessTokenExpiry = DateTime.now().add(const Duration(minutes: 50));
+    return token;
+  }
+
+  Future<String> _fetchFreshDataAccessToken() async {
     if (kIsWeb) {
       final user = _auth.currentUser;
       if (user == null) {
@@ -136,6 +159,8 @@ class FirebaseAuthService {
   }
 
   Future<void> signOut() async {
+    _cachedAccessToken = null;
+    _cachedAccessTokenExpiry = null;
     if (!kIsWeb) {
       try {
         await _ensureGoogleSignInInitialized();

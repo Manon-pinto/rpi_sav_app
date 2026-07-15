@@ -18,6 +18,11 @@ const Set<String> kAllowedEmails = {
   'admin@rpimenuiserie.com',
 };
 
+/// Reflète `version:` dans pubspec.yaml — à garder synchronisé manuellement,
+/// affiché dans le monitoring admin pour vérifier que tout le monde a bien
+/// rechargé la dernière version.
+const String kAppVersion = '1.0.0+1';
+
 /// Durée par défaut (en minutes) appliquée à l'événement Calendar quand la
 /// "durée prévue" saisie par Joël n'est pas dans un format reconnu.
 const int kDefaultInterventionDurationMinutes = 60;
