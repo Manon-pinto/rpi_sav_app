@@ -25,17 +25,31 @@ class GoogleCalendarReadService {
   Future<List<CalendarEventSummary>> fetchEventsForDay(
     String accessToken,
     DateTime day,
+  ) {
+    final startOfDay = DateTime(day.year, day.month, day.day);
+    return fetchEventsForRange(
+      accessToken,
+      startOfDay,
+      startOfDay.add(const Duration(days: 1)),
+    );
+  }
+
+  /// Évènements sur une plage de dates (bornes locales) — utilisé pour
+  /// afficher les disponibilités de Joël sur les prochains jours *avant*
+  /// même que Clara/Joël choisisse une date précise.
+  Future<List<CalendarEventSummary>> fetchEventsForRange(
+    String accessToken,
+    DateTime start,
+    DateTime end,
   ) async {
     final client = GoogleAuthorizedClient(accessToken);
     try {
       final api = calendar.CalendarApi(client);
-      final startOfDay = DateTime(day.year, day.month, day.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
 
       final response = await api.events.list(
         kJoelCalendarId,
-        timeMin: startOfDay.toUtc(),
-        timeMax: endOfDay.toUtc(),
+        timeMin: start.toUtc(),
+        timeMax: end.toUtc(),
         singleEvents: true,
         orderBy: 'startTime',
       );
@@ -44,13 +58,13 @@ class GoogleCalendarReadService {
       return items
           .where((event) => event.status != 'cancelled')
           .map((event) {
-            final start = event.start?.dateTime ?? event.start?.date;
-            final end = event.end?.dateTime ?? event.end?.date;
-            if (start == null || end == null) return null;
+            final eventStart = event.start?.dateTime ?? event.start?.date;
+            final eventEnd = event.end?.dateTime ?? event.end?.date;
+            if (eventStart == null || eventEnd == null) return null;
             return CalendarEventSummary(
               title: event.summary ?? 'Sans titre',
-              start: start.toLocal(),
-              end: end.toLocal(),
+              start: eventStart.toLocal(),
+              end: eventEnd.toLocal(),
             );
           })
           .whereType<CalendarEventSummary>()

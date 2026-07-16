@@ -40,8 +40,12 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
   String? _error;
   Map<String, List<String>> _dropdownOptions = {};
 
-  List<CalendarEventSummary>? _dayEvents;
-  bool _loadingDayEvents = false;
+  // Agenda des prochains jours de Joël, chargé dès l'ouverture de l'écran
+  // — pour que Clara/Joël voie ses disponibilités *avant* de choisir une
+  // date, plutôt que de choisir une date puis découvrir un conflit.
+  static const _upcomingWindowDays = 14;
+  List<CalendarEventSummary>? _upcomingEvents;
+  bool _loadingUpcoming = false;
 
   @override
   void initState() {
@@ -50,6 +54,32 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
     _vehiculeController.text = widget.intervention.vehicule;
     _renfortController.text = widget.intervention.renfort;
     _loadDropdownOptions();
+    _loadUpcomingAvailability();
+  }
+
+  /// Visu des disponibilités de Joël sur les prochains jours, en
+  /// complément de l'alerte mail envoyée après coup par le script si un
+  /// conflit passe quand même.
+  Future<void> _loadUpcomingAvailability() async {
+    setState(() => _loadingUpcoming = true);
+    try {
+      final token = await widget.authService.requestDataAccessToken();
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month, now.day);
+      final events = await _calendarReadService.fetchEventsForRange(
+        token,
+        start,
+        start.add(const Duration(days: _upcomingWindowDays)),
+      );
+      events.sort((a, b) => a.start.compareTo(b.start));
+      if (mounted) setState(() => _upcomingEvents = events);
+    } catch (_) {
+      // Non bloquant : la visu est un confort, pas une condition pour
+      // planifier.
+      if (mounted) setState(() => _upcomingEvents = null);
+    } finally {
+      if (mounted) setState(() => _loadingUpcoming = false);
+    }
   }
 
   Future<void> _loadDropdownOptions() async {
@@ -79,37 +109,7 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null) {
-      setState(() => _date = picked);
-      _loadDayEvents();
-    }
-  }
-
-  /// Visu des disponibilités de Joël ce jour-là, pour repérer un conflit
-  /// avant même de valider (en complément de l'alerte mail envoyée après
-  /// coup par le script si un conflit passe quand même).
-  Future<void> _loadDayEvents() async {
-    final day = _date;
-    if (day == null) return;
-    setState(() {
-      _loadingDayEvents = true;
-      _dayEvents = null;
-    });
-    try {
-      final token = await widget.authService.requestDataAccessToken();
-      final events = await _calendarReadService.fetchEventsForDay(
-        token,
-        day,
-      );
-      events.sort((a, b) => a.start.compareTo(b.start));
-      if (mounted) setState(() => _dayEvents = events);
-    } catch (_) {
-      // Non bloquant : la visu est un confort, pas une condition pour
-      // planifier. Le champ reste simplement vide en cas d'échec.
-      if (mounted) setState(() => _dayEvents = null);
-    } finally {
-      if (mounted) setState(() => _loadingDayEvents = false);
-    }
+    if (picked != null) setState(() => _date = picked);
   }
 
   Future<void> _pickTime() async {
@@ -257,6 +257,11 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
             const SizedBox(height: 12),
+            // Disponibilités affichées avant le choix de la date, pour
+            // que Clara/Joël sache où se caler plutôt que de choisir une
+            // date à l'aveugle puis découvrir un conflit.
+            _upcomingAvailabilityCard(),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -284,10 +289,6 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                 ),
               ],
             ),
-            if (_date != null) ...[
-              const SizedBox(height: 12),
-              _dayAvailabilityCard(),
-            ],
             const SizedBox(height: 12),
             _fieldFor(
               columnKey: SavColumns.dureeIntervention,
@@ -335,9 +336,9 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
     );
   }
 
-  /// Aperçu des rendez-vous déjà pris par Joël le jour sélectionné, pour
-  /// repérer un créneau libre avant de valider.
-  Widget _dayAvailabilityCard() {
+  /// Agenda de Joël sur les prochains jours (regroupé par date), affiché
+  /// avant même de choisir une date pour l'intervention.
+  Widget _upcomingAvailabilityCard() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -353,8 +354,7 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Disponibilités de Joël le '
-                  '${DateFormat('dd/MM/yyyy').format(_date!)}',
+                  'Disponibilités de Joël (prochains $_upcomingWindowDays jours)',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     color: AppColors.muted,
@@ -363,7 +363,7 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            if (_loadingDayEvents)
+            if (_loadingUpcoming)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 4),
                 child: SizedBox(
@@ -372,31 +372,67 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               )
-            else if (_dayEvents == null)
+            else if (_upcomingEvents == null)
               const Text(
                 'Disponibilités indisponibles pour le moment.',
                 style: TextStyle(color: AppColors.muted, fontSize: 13),
               )
-            else if (_dayEvents!.isEmpty)
-              const Text(
-                'Aucun rendez-vous ce jour-là — journée libre.',
-                style: TextStyle(color: AppColors.success, fontSize: 13),
+            else if (_upcomingEvents!.isEmpty)
+              Text(
+                'Aucun rendez-vous dans les $_upcomingWindowDays prochains '
+                'jours — Joël est libre.',
+                style: const TextStyle(color: AppColors.success, fontSize: 13),
               )
             else
-              ..._dayEvents!.map(
-                (event) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '${DateFormat('HH:mm').format(event.start)} - '
-                    '${DateFormat('HH:mm').format(event.end)} · ${event.title}',
-                    style: const TextStyle(fontSize: 13),
+              ..._groupEventsByDay(_upcomingEvents!).entries.map((entry) {
+                final day = entry.key;
+                final events = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('EEEE dd/MM', 'fr').format(day),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      ...events.map(
+                        (event) => Padding(
+                          padding: const EdgeInsets.only(left: 8, top: 2),
+                          child: Text(
+                            '${DateFormat('HH:mm').format(event.start)} - '
+                            '${DateFormat('HH:mm').format(event.end)} · '
+                            '${event.title}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
+                );
+              }),
           ],
         ),
       ),
     );
+  }
+
+  Map<DateTime, List<CalendarEventSummary>> _groupEventsByDay(
+    List<CalendarEventSummary> events,
+  ) {
+    final grouped = <DateTime, List<CalendarEventSummary>>{};
+    for (final event in events) {
+      final day = DateTime(
+        event.start.year,
+        event.start.month,
+        event.start.day,
+      );
+      grouped.putIfAbsent(day, () => []).add(event);
+    }
+    return grouped;
   }
 
   /// Menu déroulant si la colonne du Sheet a une liste de validation,
