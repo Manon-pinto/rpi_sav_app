@@ -21,15 +21,23 @@ class RpiAppBarTitle extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          'assets/RPI LOGO base line noir.png',
-          height: displayHeight,
-          cacheHeight: cacheHeight,
-          filterQuality: FilterQuality.high,
-          errorBuilder: (context, error, stackTrace) => const Icon(
-            Icons.error_outline,
-            color: Colors.red,
-            size: 32,
+        // Fond clair derrière le logo : le trait du logo est noir, il
+        // serait invisible directement sur la barre du haut désormais noire.
+        ClipOval(
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(4),
+            child: Image.asset(
+              'assets/RPI LOGO base line noir.png',
+              height: displayHeight,
+              cacheHeight: cacheHeight,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 32,
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 10),
