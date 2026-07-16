@@ -33,6 +33,14 @@ ThemeData buildAppTheme() {
       iconTheme: IconThemeData(size: 22, color: Colors.white),
       actionsIconTheme: IconThemeData(size: 22, color: Colors.white),
     ),
+    // Les onglets (TabBar) s'affichent dans l'AppBar désormais noire : sans
+    // ce thème, leurs libellés restaient sombres et illisibles dessus.
+    tabBarTheme: const TabBarThemeData(
+      labelColor: Colors.white,
+      unselectedLabelColor: Colors.white70,
+      indicatorColor: AppColors.accent,
+      dividerColor: Colors.transparent,
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.accent,
