@@ -58,6 +58,19 @@ rafraîchir les données depuis le Sheet.
 ➡️ Le rendez-vous apparaît dans le calendrier de Joël **automatiquement**,
 sous quelques minutes (pas besoin de le créer soi-même).
 
+### Voir les disponibilités de Joël
+
+Sous le bouton d'enregistrement, un mini calendrier affiche en permanence
+les rendez-vous déjà pris par Joël :
+- **Point orange** : Joël a déjà un RDV ce jour-là
+- **Point vert** : Joël a déjà un RDV **dans le même secteur** (même code
+  postal que l'adresse du SAV à planifier) — regrouper les interventions le
+  même jour évite des allers-retours inutiles
+- Clique sur un jour pour voir le détail des rendez-vous
+- Un bandeau vert au-dessus du calendrier liste directement les jours où
+  Joël est déjà dans le secteur — clique sur une date pour la sélectionner
+  automatiquement
+
 ### Si tu ne connais pas encore la date/l'heure
 
 Tu peux enregistrer uniquement la durée/le véhicule/le renfort, **sans**
