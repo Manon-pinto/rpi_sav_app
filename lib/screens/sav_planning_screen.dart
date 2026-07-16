@@ -257,11 +257,6 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
             const SizedBox(height: 12),
-            // Disponibilités affichées avant le choix de la date, pour
-            // que Clara/Joël sache où se caler plutôt que de choisir une
-            // date à l'aveugle puis découvrir un conflit.
-            _upcomingAvailabilityCard(),
-            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -330,6 +325,10 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                           : 'Enregistrer sans rendez-vous',
                     ),
             ),
+            const SizedBox(height: 20),
+            // Toujours visible sous le bouton d'enregistrement, pour que
+            // Clara/Joël garde un œil sur l'agenda même après avoir validé.
+            _upcomingAvailabilityCard(),
           ],
         ),
       ),
@@ -337,7 +336,7 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
   }
 
   /// Agenda de Joël sur les prochains jours (regroupé par date), affiché
-  /// avant même de choisir une date pour l'intervention.
+  /// en permanence sous le bouton d'enregistrement du rendez-vous.
   Widget _upcomingAvailabilityCard() {
     return Card(
       child: Padding(
