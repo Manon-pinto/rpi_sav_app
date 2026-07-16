@@ -27,6 +27,11 @@ const String kAppVersion = '1.0.0+1';
 /// "durée prévue" saisie par Joël n'est pas dans un format reconnu.
 const int kDefaultInterventionDurationMinutes = 60;
 
+/// Calendrier dont on lit les disponibilités pour la visu dans l'écran de
+/// planification — même calendrier que celui utilisé côté Apps Script
+/// (CONFIG.IDS.CALENDAR) pour la création effective des RDV.
+const String kJoelCalendarId = 'joel.pouvereau@rpimenuiserie.com';
+
 /// Mapping des colonnes du Google Sheet "SAV diffus" (voir section 3 du doc
 /// de lancement). Les lettres de colonnes sont converties en index 0-based
 /// par [SavColumns.indexOf].

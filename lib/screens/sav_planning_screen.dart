@@ -5,6 +5,7 @@ import '../data/activity_logger.dart';
 import '../data/app_config.dart';
 import '../data/error_logger.dart';
 import '../data/firebase_auth_service.dart';
+import '../data/google_calendar_read_service.dart';
 import '../data/google_sheets_service.dart';
 import '../models/sav_intervention.dart';
 import '../theme/app_colors.dart';
@@ -31,12 +32,16 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
   final _dureeController = TextEditingController();
   final _vehiculeController = TextEditingController();
   final _renfortController = TextEditingController();
+  final _calendarReadService = GoogleCalendarReadService();
 
   DateTime? _date;
   TimeOfDay? _heure;
   bool _saving = false;
   String? _error;
   Map<String, List<String>> _dropdownOptions = {};
+
+  List<CalendarEventSummary>? _dayEvents;
+  bool _loadingDayEvents = false;
 
   @override
   void initState() {
@@ -74,7 +79,37 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null) {
+      setState(() => _date = picked);
+      _loadDayEvents();
+    }
+  }
+
+  /// Visu des disponibilités de Joël ce jour-là, pour repérer un conflit
+  /// avant même de valider (en complément de l'alerte mail envoyée après
+  /// coup par le script si un conflit passe quand même).
+  Future<void> _loadDayEvents() async {
+    final day = _date;
+    if (day == null) return;
+    setState(() {
+      _loadingDayEvents = true;
+      _dayEvents = null;
+    });
+    try {
+      final token = await widget.authService.requestDataAccessToken();
+      final events = await _calendarReadService.fetchEventsForDay(
+        token,
+        day,
+      );
+      events.sort((a, b) => a.start.compareTo(b.start));
+      if (mounted) setState(() => _dayEvents = events);
+    } catch (_) {
+      // Non bloquant : la visu est un confort, pas une condition pour
+      // planifier. Le champ reste simplement vide en cas d'échec.
+      if (mounted) setState(() => _dayEvents = null);
+    } finally {
+      if (mounted) setState(() => _loadingDayEvents = false);
+    }
   }
 
   Future<void> _pickTime() async {
@@ -249,6 +284,10 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                 ),
               ],
             ),
+            if (_date != null) ...[
+              const SizedBox(height: 12),
+              _dayAvailabilityCard(),
+            ],
             const SizedBox(height: 12),
             _fieldFor(
               columnKey: SavColumns.dureeIntervention,
@@ -290,6 +329,70 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                           : 'Enregistrer sans rendez-vous',
                     ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Aperçu des rendez-vous déjà pris par Joël le jour sélectionné, pour
+  /// repérer un créneau libre avant de valider.
+  Widget _dayAvailabilityCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_month_outlined,
+                  size: 18,
+                  color: AppColors.muted,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Disponibilités de Joël le '
+                  '${DateFormat('dd/MM/yyyy').format(_date!)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_loadingDayEvents)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else if (_dayEvents == null)
+              const Text(
+                'Disponibilités indisponibles pour le moment.',
+                style: TextStyle(color: AppColors.muted, fontSize: 13),
+              )
+            else if (_dayEvents!.isEmpty)
+              const Text(
+                'Aucun rendez-vous ce jour-là — journée libre.',
+                style: TextStyle(color: AppColors.success, fontSize: 13),
+              )
+            else
+              ..._dayEvents!.map(
+                (event) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '${DateFormat('HH:mm').format(event.start)} - '
+                    '${DateFormat('HH:mm').format(event.end)} · ${event.title}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
