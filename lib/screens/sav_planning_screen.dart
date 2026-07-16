@@ -98,6 +98,40 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
         .toList();
   }
 
+  /// Code postal du SAV à planifier, extrait de l'adresse (colonne "Client
+  /// final / Adresse / Téléphone"), pour repérer les jours où Joël est déjà
+  /// dans le secteur.
+  static final _postalCodeRegExp = RegExp(r'\b\d{5}\b');
+
+  late final String? _targetPostalCode = _postalCodeRegExp
+      .firstMatch(widget.intervention.clientFinal)
+      ?.group(0);
+
+  /// Vrai si Joël a déjà un RDV ce jour-là dont le lieu partage le même
+  /// code postal que le SAV à planifier — suggère un jour où regrouper les
+  /// déplacements plutôt que de choisir une date au hasard.
+  bool _isNearbyDay(DateTime day) {
+    final target = _targetPostalCode;
+    if (target == null) return false;
+    return _eventsForDay(day).any((event) {
+      final eventPostalCode = _postalCodeRegExp
+          .firstMatch(event.location)
+          ?.group(0);
+      return eventPostalCode == target;
+    });
+  }
+
+  List<DateTime> get _nearbyDaysInMonth {
+    if (_targetPostalCode == null || _monthEvents == null) return const [];
+    final days = _monthEvents!
+        .map((e) => DateTime(e.start.year, e.start.month, e.start.day))
+        .toSet()
+        .where(_isNearbyDay)
+        .toList();
+    days.sort();
+    return days;
+  }
+
   Future<void> _loadDropdownOptions() async {
     try {
       final token = await widget.authService.requestDataAccessToken();
@@ -388,6 +422,10 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                 ],
               ],
             ),
+            if (_targetPostalCode != null) ...[
+              const SizedBox(height: 8),
+              _nearbySuggestionBanner(),
+            ],
             TableCalendar<CalendarEventSummary>(
               locale: 'fr',
               firstDay: DateTime.now().subtract(const Duration(days: 365)),
@@ -410,11 +448,22 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                   color: AppColors.ink,
                   shape: BoxShape.circle,
                 ),
-                markerDecoration: BoxDecoration(
-                  color: AppColors.accent,
-                  shape: BoxShape.circle,
-                ),
                 markersMaxCount: 1,
+              ),
+              calendarBuilders: CalendarBuilders(
+                markerBuilder: (context, day, events) {
+                  if (events.isEmpty) return null;
+                  final nearby = _isNearbyDay(day);
+                  return Container(
+                    width: 7,
+                    height: 7,
+                    margin: const EdgeInsets.only(top: 2),
+                    decoration: BoxDecoration(
+                      color: nearby ? AppColors.success : AppColors.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  );
+                },
               ),
               onDaySelected: (day, focused) {
                 setState(() {
@@ -427,6 +476,26 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                 _loadMonthEvents(focused);
               },
             ),
+            if (_targetPostalCode != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  _legendDot(AppColors.success),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Joël déjà dans le secteur',
+                    style: TextStyle(fontSize: 11, color: AppColors.muted),
+                  ),
+                  const SizedBox(width: 12),
+                  _legendDot(AppColors.accent),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Autre RDV',
+                    style: TextStyle(fontSize: 11, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ],
             if (selected != null) ...[
               const Divider(height: 20),
               Text(
@@ -468,6 +537,61 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Bandeau qui suggère les jours où Joël a déjà un RDV dans le même
+  /// secteur (code postal) que le SAV à planifier, pour regrouper les
+  /// déplacements plutôt que de choisir une date au hasard.
+  Widget _nearbySuggestionBanner() {
+    final nearbyDays = _nearbyDaysInMonth;
+    if (nearbyDays.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          const Icon(
+            Icons.location_on_outlined,
+            size: 16,
+            color: AppColors.success,
+          ),
+          Text(
+            'Joël est déjà dans le secteur ($_targetPostalCode) le :',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.success,
+            ),
+          ),
+          for (final day in nearbyDays)
+            ActionChip(
+              label: Text(DateFormat('dd/MM').format(day)),
+              labelStyle: const TextStyle(fontSize: 12),
+              backgroundColor: AppColors.success.withValues(alpha: 0.16),
+              side: BorderSide.none,
+              onPressed: () => setState(() {
+                _date = day;
+                _selectedDay = day;
+                _focusedMonth = day;
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendDot(Color color) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 

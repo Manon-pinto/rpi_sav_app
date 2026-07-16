@@ -11,11 +11,18 @@ class CalendarEventSummary {
     required this.title,
     required this.start,
     required this.end,
+    this.location = '',
   });
 
   final String title;
   final DateTime start;
   final DateTime end;
+
+  /// Lieu du RDV tel que renseigné sur l'évènement Calendar (texte libre,
+  /// souvent une adresse) — utilisé pour repérer les jours où Joël est déjà
+  /// dans le secteur d'un nouveau SAV (voir [_isNearbyDay] dans l'écran de
+  /// planification).
+  final String location;
 }
 
 /// Lecture seule du calendrier de Joël, pour prévisualiser ses
@@ -65,6 +72,7 @@ class GoogleCalendarReadService {
               title: event.summary ?? 'Sans titre',
               start: eventStart.toLocal(),
               end: eventEnd.toLocal(),
+              location: event.location ?? '',
             );
           })
           .whereType<CalendarEventSummary>()
