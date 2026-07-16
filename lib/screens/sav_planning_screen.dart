@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 import '../data/activity_logger.dart';
 import '../data/app_config.dart';
@@ -40,12 +41,13 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
   String? _error;
   Map<String, List<String>> _dropdownOptions = {};
 
-  // Agenda des prochains jours de Joël, chargé dès l'ouverture de l'écran
-  // — pour que Clara/Joël voie ses disponibilités *avant* de choisir une
-  // date, plutôt que de choisir une date puis découvrir un conflit.
-  static const _upcomingWindowDays = 14;
-  List<CalendarEventSummary>? _upcomingEvents;
-  bool _loadingUpcoming = false;
+  // Agenda de Joël sous forme de mini calendrier mensuel, chargé dès
+  // l'ouverture de l'écran — pour que Clara/Joël voie ses disponibilités
+  // en permanence, indépendamment de la date choisie pour l'intervention.
+  DateTime _focusedMonth = DateTime.now();
+  DateTime? _selectedDay;
+  List<CalendarEventSummary>? _monthEvents;
+  bool _loadingMonth = false;
 
   @override
   void initState() {
@@ -54,32 +56,46 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
     _vehiculeController.text = widget.intervention.vehicule;
     _renfortController.text = widget.intervention.renfort;
     _loadDropdownOptions();
-    _loadUpcomingAvailability();
+    _loadMonthEvents(_focusedMonth);
   }
 
-  /// Visu des disponibilités de Joël sur les prochains jours, en
-  /// complément de l'alerte mail envoyée après coup par le script si un
-  /// conflit passe quand même.
-  Future<void> _loadUpcomingAvailability() async {
-    setState(() => _loadingUpcoming = true);
+  /// Visu des disponibilités de Joël sur le mois affiché, en complément de
+  /// l'alerte mail envoyée après coup par le script si un conflit passe
+  /// quand même.
+  Future<void> _loadMonthEvents(DateTime month) async {
+    setState(() => _loadingMonth = true);
     try {
       final token = await widget.authService.requestDataAccessToken();
-      final now = DateTime.now();
-      final start = DateTime(now.year, now.month, now.day);
+      // Marge d'une semaine avant/après pour couvrir les jours du mois
+      // précédent/suivant affichés en début/fin de grille.
+      final start = DateTime(
+        month.year,
+        month.month,
+      ).subtract(const Duration(days: 7));
+      final end = DateTime(
+        month.year,
+        month.month + 1,
+      ).add(const Duration(days: 7));
       final events = await _calendarReadService.fetchEventsForRange(
         token,
         start,
-        start.add(const Duration(days: _upcomingWindowDays)),
+        end,
       );
       events.sort((a, b) => a.start.compareTo(b.start));
-      if (mounted) setState(() => _upcomingEvents = events);
+      if (mounted) setState(() => _monthEvents = events);
     } catch (_) {
       // Non bloquant : la visu est un confort, pas une condition pour
       // planifier.
-      if (mounted) setState(() => _upcomingEvents = null);
+      if (mounted) setState(() => _monthEvents = null);
     } finally {
-      if (mounted) setState(() => _loadingUpcoming = false);
+      if (mounted) setState(() => _loadingMonth = false);
     }
+  }
+
+  List<CalendarEventSummary> _eventsForDay(DateTime day) {
+    return (_monthEvents ?? const [])
+        .where((event) => isSameDay(event.start, day))
+        .toList();
   }
 
   Future<void> _loadDropdownOptions() async {
@@ -336,11 +352,14 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
   }
 
   /// Agenda de Joël sur les prochains jours (regroupé par date), affiché
-  /// en permanence sous le bouton d'enregistrement du rendez-vous.
+  /// en permanence sous le bouton d'enregistrement du rendez-vous : mini
+  /// calendrier mensuel, jours occupés marqués d'un point orange, avec le
+  /// détail du jour sélectionné en dessous.
   Widget _upcomingAvailabilityCard() {
+    final selected = _selectedDay;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -352,86 +371,104 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                   color: AppColors.muted,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Disponibilités de Joël (prochains $_upcomingWindowDays jours)',
-                  style: const TextStyle(
+                const Text(
+                  'Disponibilités de Joël',
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     color: AppColors.muted,
                   ),
                 ),
+                if (_loadingMonth) ...[
+                  const SizedBox(width: 8),
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 8),
-            if (_loadingUpcoming)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 4),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+            TableCalendar<CalendarEventSummary>(
+              locale: 'fr',
+              firstDay: DateTime.now().subtract(const Duration(days: 365)),
+              lastDay: DateTime.now().add(const Duration(days: 365)),
+              focusedDay: _focusedMonth,
+              selectedDayPredicate: (day) => isSameDay(selected, day),
+              eventLoader: _eventsForDay,
+              startingDayOfWeek: StartingDayOfWeek.monday,
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+              ),
+              calendarStyle: const CalendarStyle(
+                todayDecoration: BoxDecoration(
+                  color: AppColors.line,
+                  shape: BoxShape.circle,
                 ),
-              )
-            else if (_upcomingEvents == null)
-              const Text(
-                'Disponibilités indisponibles pour le moment.',
-                style: TextStyle(color: AppColors.muted, fontSize: 13),
-              )
-            else if (_upcomingEvents!.isEmpty)
+                todayTextStyle: TextStyle(color: AppColors.ink),
+                selectedDecoration: BoxDecoration(
+                  color: AppColors.ink,
+                  shape: BoxShape.circle,
+                ),
+                markerDecoration: BoxDecoration(
+                  color: AppColors.accent,
+                  shape: BoxShape.circle,
+                ),
+                markersMaxCount: 1,
+              ),
+              onDaySelected: (day, focused) {
+                setState(() {
+                  _selectedDay = day;
+                  _focusedMonth = focused;
+                });
+              },
+              onPageChanged: (focused) {
+                _focusedMonth = focused;
+                _loadMonthEvents(focused);
+              },
+            ),
+            if (selected != null) ...[
+              const Divider(height: 20),
               Text(
-                'Aucun rendez-vous dans les $_upcomingWindowDays prochains '
-                'jours — Joël est libre.',
-                style: const TextStyle(color: AppColors.success, fontSize: 13),
-              )
-            else
-              ..._groupEventsByDay(_upcomingEvents!).entries.map((entry) {
-                final day = entry.key;
-                final events = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Column(
+                DateFormat('EEEE dd/MM', 'fr').format(selected),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Builder(
+                builder: (context) {
+                  final events = _eventsForDay(selected);
+                  if (events.isEmpty) {
+                    return const Text(
+                      'Aucun rendez-vous — journée libre.',
+                      style: TextStyle(
+                        color: AppColors.success,
+                        fontSize: 13,
+                      ),
+                    );
+                  }
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DateFormat('EEEE dd/MM', 'fr').format(day),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                      ...events.map(
-                        (event) => Padding(
-                          padding: const EdgeInsets.only(left: 8, top: 2),
-                          child: Text(
-                            '${DateFormat('HH:mm').format(event.start)} - '
-                            '${DateFormat('HH:mm').format(event.end)} · '
-                            '${event.title}',
-                            style: const TextStyle(fontSize: 13),
+                    children: events
+                        .map(
+                          (event) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '${DateFormat('HH:mm').format(event.start)} - '
+                              '${DateFormat('HH:mm').format(event.end)} · '
+                              '${event.title}',
+                              style: const TextStyle(fontSize: 13),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
+            ],
           ],
         ),
       ),
     );
-  }
-
-  Map<DateTime, List<CalendarEventSummary>> _groupEventsByDay(
-    List<CalendarEventSummary> events,
-  ) {
-    final grouped = <DateTime, List<CalendarEventSummary>>{};
-    for (final event in events) {
-      final day = DateTime(
-        event.start.year,
-        event.start.month,
-        event.start.day,
-      );
-      grouped.putIfAbsent(day, () => []).add(event);
-    }
-    return grouped;
   }
 
   /// Menu déroulant si la colonne du Sheet a une liste de validation,
