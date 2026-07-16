@@ -33,6 +33,12 @@ ThemeData buildAppTheme() {
       iconTheme: IconThemeData(size: 22, color: Colors.white),
       actionsIconTheme: IconThemeData(size: 22, color: Colors.white),
     ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.accent,
+        foregroundColor: Colors.white,
+      ),
+    ),
     cardTheme: CardThemeData(
       elevation: 0,
       color: AppColors.card,

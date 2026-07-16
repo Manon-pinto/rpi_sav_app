@@ -145,7 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         label: 'Chantiers concernés',
                         value: '${refsChantiers.length}',
                         icon: Icons.inventory_2_outlined,
-                        color: AppColors.ink,
+                        color: AppColors.accent,
                       ),
                     ],
                   ),
@@ -162,6 +162,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.accent,
+                        ),
                         onPressed: () async {
                           await Navigator.of(context).push(
                             MaterialPageRoute(
@@ -197,10 +200,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   horizontal: 16,
                                   vertical: 8,
                                 ),
-                                leading: const CircleAvatar(
-                                  backgroundColor: AppColors.shell,
+                                leading: CircleAvatar(
+                                  backgroundColor: AppColors.accent
+                                      .withValues(alpha: 0.14),
                                   foregroundColor: AppColors.accent,
-                                  child: Icon(Icons.build_outlined),
+                                  child: const Icon(Icons.build_outlined),
                                 ),
                                 title: Text(
                                   '${intervention.numeroSav} — ${intervention.nomClient}',
@@ -252,27 +256,41 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Icon(icon, color: color, size: 26),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: AppColors.ink,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Liseré coloré en haut de la carte, à la manière des tableaux de
+          // bord RPI Commandes/Qualité — reprend la couleur de l'indicateur.
+          Container(height: 4, color: color),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(icon, color: color, size: 26),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Text(
-              label,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
