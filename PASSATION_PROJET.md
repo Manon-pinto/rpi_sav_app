@@ -65,7 +65,11 @@ pas dans ce dépôt Git — Extensions → Apps Script. Deux fichiers à connaî
 - `SyncAgendaAuto.gs`, ajouté pour ce projet : contient `syncPendingAgendaEvents`
   (déclencheur temporel, toutes les 5-10 min) qui crée les RDV pour les
   lignes modifiées par l'app (l'API Sheets ne déclenche jamais `onEdit`,
-  d'où ce script complémentaire — **ne pas le supprimer**).
+  d'où ce script complémentaire — **ne pas le supprimer**). Contient aussi
+  `notifyConflict_`, qui envoie un mail à `cyril.chaumeil@rpimenuiserie.com`
+  en cas de conflit de créneau détecté (dédupliqué via une note posée sur
+  la cellule DATE_INTER, pour ne pas spammer à chaque passage du
+  déclencheur).
 
 ## 4. Colonnes du Sheet "SAV diffus" (mapping actuel)
 

@@ -104,6 +104,9 @@ admin. Appli déployée sur https://rpi-sav-app.web.app.
 | 5.2 | Couper la connexion internet puis ouvrir l'app | Un message d'erreur de chargement s'affiche, pas de plantage |
 | 5.3 | Planifier un SAV dont la ligne a une cellule protégée dans une colonne annexe | L'enregistrement de durée/véhicule/renfort/date/heure réussit quand même (l'app n'écrit plus la colonne "Etat SAV" protégée) |
 | 5.4 | Planifier deux SAV sur des créneaux qui se chevauchent avec un RDV déjà existant dans le calendrier de Joël | Le RDV en conflit n'écrase pas l'existant ; il apparaît en erreur dans le journal Apps Script (Exécutions), pas de doublon créé |
+| 5.5 | Vérifier la boîte mail de `cyril.chaumeil@rpimenuiserie.com` après un conflit (5.4) | Un mail "⛔ Conflit de créneau SAV" est reçu, avec le SAV, le créneau demandé et le RDV déjà en place |
+| 5.6 | Laisser tourner le déclencheur plusieurs fois de suite sans résoudre le conflit | Un seul mail envoyé au total (pas de répétition tant que le créneau ne change pas) |
+| 5.7 | Résoudre le conflit (changer la date/heure du SAV) puis provoquer un nouveau conflit sur ce même SAV | Un nouveau mail est bien envoyé pour ce nouveau conflit |
 
 ## 6. Monitoring admin
 

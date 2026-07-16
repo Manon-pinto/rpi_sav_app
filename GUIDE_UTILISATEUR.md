@@ -72,8 +72,11 @@ l'heure plus tard (ou l'inverse) — rien n'est effacé entre les deux étapes.
 
 Si le créneau choisi entre en conflit avec un rendez-vous déjà existant
 dans le calendrier de Joël, le rendez-vous **n'est pas créé
-automatiquement** pour éviter d'écraser l'existant. Dans ce cas, il faut
-choisir un autre créneau ou vérifier directement dans le calendrier.
+automatiquement** pour éviter d'écraser l'existant. **Cyril reçoit alors un
+mail automatique** l'informant du conflit (SAV concerné, créneau demandé,
+rendez-vous déjà en place) pour qu'il replanifie sur un autre créneau. Un
+seul mail est envoyé par conflit — pas de mails répétés tant que le
+créneau n'a pas changé.
 
 ## 6. Se déconnecter
 
@@ -84,8 +87,8 @@ Icône de déconnexion en haut à droite de l'écran.
 | Symptôme | Que faire |
 |---|---|
 | "Ce compte Google n'est pas autorisé" | Vérifie que tu utilises bien un des 3 comptes listés en section 1 |
-| Un SAV planifié n'apparaît pas dans le calendrier | Attends jusqu'à 10 minutes (synchronisation automatique) ; si toujours rien après, contacte l'admin |
-| La page semble bloquée ou affiche une erreur | Recharge la page (Cmd+Maj+R sur Mac) ; si ça persiste, contacte l'admin |
+| Un SAV planifié n'apparaît pas dans le calendrier | Attends jusqu'à 10 minutes (synchronisation automatique) ; si toujours rien après, contacte le developpeur |
+| La page semble bloquée ou affiche une erreur | Recharge la page (Cmd+Maj+R sur Mac) ; si ça persiste, contacte le developpeur |
 | Un SAV que tu attends n'apparaît pas dans la liste | Vérifie dans le Sheet qu'il est bien au statut "Accepté", assigné à Joël (ligne rose ou "Joel" en colonne L), et pas déjà clôturé ou déjà planifié |
 
 ## 8. Contact
