@@ -130,23 +130,33 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
   /// planifier — suggère un jour où regrouper les déplacements plutôt que
   /// de choisir une date au hasard.
   bool _isNearbyDay(DateTime day) {
-    final target = _targetPostalCode;
-    if (target == null) return false;
-    final targetZone = postalCodeZone(target);
-    return _eventsForDay(day).any((event) {
-      final eventPostalCode = _postalCodeRegExp
-          .firstMatch(event.location)
-          ?.group(0);
-      if (eventPostalCode == null) return false;
-      return postalCodeZone(eventPostalCode) == targetZone;
-    });
+    return _eventsForDay(day).any(_isNearbyEvent);
   }
 
+  /// Vrai si le lieu de cet évènement précis est dans la même zone que le
+  /// SAV à planifier — utilisé à la fois pour le point vert du calendrier et
+  /// pour mettre en avant le bon rendez-vous dans le détail du jour.
+  bool _isNearbyEvent(CalendarEventSummary event) {
+    final target = _targetPostalCode;
+    if (target == null) return false;
+    final eventPostalCode = _postalCodeRegExp
+        .firstMatch(event.location)
+        ?.group(0);
+    if (eventPostalCode == null) return false;
+    return postalCodeZone(eventPostalCode) == postalCodeZone(target);
+  }
+
+  /// Jours à venir (à partir d'aujourd'hui inclus... en fait strictement
+  /// après aujourd'hui, un RDV le jour même n'étant plus proposable) où
+  /// Joël est déjà dans le secteur — inutile de suggérer une date passée.
   List<DateTime> get _nearbyDaysInMonth {
     if (_targetPostalCode == null || _monthEvents == null) return const [];
+    final today = DateTime.now();
+    final startOfToday = DateTime(today.year, today.month, today.day);
     final days = _monthEvents!
         .map((e) => DateTime(e.start.year, e.start.month, e.start.day))
         .toSet()
+        .where((day) => day.isAfter(startOfToday))
         .where(_isNearbyDay)
         .toList();
     days.sort();
@@ -542,19 +552,55 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                   }
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: events
-                        .map(
-                          (event) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              '${DateFormat('HH:mm').format(event.start)} - '
-                              '${DateFormat('HH:mm').format(event.end)} · '
-                              '${event.title}',
-                              style: const TextStyle(fontSize: 13),
-                            ),
+                    children: events.map((event) {
+                      final nearby = _isNearbyEvent(event);
+                      final label =
+                          '${DateFormat('HH:mm').format(event.start)} - '
+                          '${DateFormat('HH:mm').format(event.end)} · '
+                          '${event.title}';
+                      if (!nearby) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            label,
+                            style: const TextStyle(fontSize: 13),
                           ),
-                        )
-                        .toList(),
+                        );
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on,
+                                size: 14,
+                                color: AppColors.success,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   );
                 },
               ),
