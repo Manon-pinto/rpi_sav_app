@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/activity_logger.dart';
 import '../data/app_config.dart';
 import '../data/error_logger.dart';
 import '../data/firebase_auth_service.dart';
+import '../data/geocoding_service.dart';
 import '../data/google_calendar_read_service.dart';
 import '../data/google_sheets_service.dart';
 import '../models/sav_intervention.dart';
@@ -34,6 +38,8 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
   final _vehiculeController = TextEditingController();
   final _renfortController = TextEditingController();
   final _calendarReadService = GoogleCalendarReadService();
+  final _geocodingService = GeocodingService();
+  GeocodedAddress? _interventionLocation;
 
   DateTime? _date;
   TimeOfDay? _heure;
@@ -57,6 +63,17 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
     _renfortController.text = widget.intervention.renfort;
     _loadDropdownOptions();
     _loadMonthEvents(_focusedMonth);
+    _loadInterventionLocation();
+  }
+
+  /// Géocode l'adresse du SAV (une seule fois à l'ouverture de l'écran) pour
+  /// afficher une petite carte — non bloquant : si l'adresse ne peut pas
+  /// être résolue, la carte est simplement masquée.
+  Future<void> _loadInterventionLocation() async {
+    final location = await _geocodingService.geocode(
+      widget.intervention.clientFinal,
+    );
+    if (mounted) setState(() => _interventionLocation = location);
   }
 
   /// Visu des disponibilités de Joël sur le mois affiché, en complément de
@@ -289,6 +306,10 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            if (_interventionLocation != null) ...[
+              _interventionMapCard(_interventionLocation!),
+              const SizedBox(height: 12),
+            ],
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -626,6 +647,78 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
       ],
       onChanged: (value) => setState(() => controller.text = value ?? ''),
     );
+  }
+
+  /// Petite carte (OpenStreetMap, gratuite, sans clé API) montrant où se
+  /// trouve l'adresse d'intervention, pour repérage visuel rapide avant de
+  /// choisir une date. Un bouton ouvre l'itinéraire complet dans Google Maps
+  /// (lien externe simple, ne nécessite pas d'API payante).
+  Widget _interventionMapCard(GeocodedAddress location) {
+    final point = LatLng(location.latitude, location.longitude);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 160,
+            child: IgnorePointer(
+              // Carte statique (pas de scroll/zoom tactile) : juste un
+              // repère visuel, l'itinéraire complet se fait via le bouton.
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: point,
+                  initialZoom: 13,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.none,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.rpimenuiserie.rpi_sav_app',
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: point,
+                        width: 36,
+                        height: 36,
+                        child: const Icon(
+                          Icons.location_on,
+                          color: AppColors.danger,
+                          size: 36,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _openInMaps(location),
+                icon: const Icon(Icons.directions, size: 18),
+                label: const Text('Ouvrir l\'itinéraire'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openInMaps(GeocodedAddress location) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query='
+      '${location.latitude},${location.longitude}',
+    );
+    await launchUrl(uri, webOnlyWindowName: '_blank');
   }
 
   Widget _readOnlyLine(String label, String value) {

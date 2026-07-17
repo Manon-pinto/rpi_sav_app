@@ -46,6 +46,8 @@ dependencies:
   url_launcher: ^6.3.2
   shared_preferences: ^2.5.5
   table_calendar: ^3.2.0
+  flutter_map: ^8.1.1
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:

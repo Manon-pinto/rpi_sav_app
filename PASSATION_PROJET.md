@@ -7,7 +7,7 @@ projet sans repartir de zéro.*
 
 | | |
 |---|---|
-| Rédigé par | Assistant technique (Claude) |
+| Rédigé par | Manon Pinto |
 | Date | 15/07/2026 |
 | Dépôt | https://github.com/Manon-pinto/rpi_sav_app (privé) |
 | App en ligne | https://rpi-sav-app.web.app |

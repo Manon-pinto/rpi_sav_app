@@ -9,7 +9,7 @@ Sheet existant et au calendrier de Joël, sans double saisie.*
 
 | | |
 |---|---|
-| Rédigé par | Assistant technique (Claude) |
+| Rédigé par | Manon PINTO |
 | Date | 15/07/2026 |
 | Destinataire | Direction RPI Menuiserie |
 
@@ -98,6 +98,6 @@ bout par un utilisateur final sur toutes les sections.
 
 | Rédigé par | Validé par |
 |---|---|
-| Nom : Assistant technique (Claude) | Nom : |
+| Nom : PINTO Manon | Nom : |
 | Date : 15/07/2026 | Date : |
 | | Signature : |
