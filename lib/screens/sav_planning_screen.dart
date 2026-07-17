@@ -107,17 +107,21 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
       .firstMatch(widget.intervention.clientFinal)
       ?.group(0);
 
-  /// Vrai si Joël a déjà un RDV ce jour-là dont le lieu partage le même
-  /// code postal que le SAV à planifier — suggère un jour où regrouper les
-  /// déplacements plutôt que de choisir une date au hasard.
+  /// Vrai si Joël a déjà un RDV ce jour-là dont le lieu est dans la même
+  /// zone (voir [kPostalCodeZones] — regroupe les communes limitrophes de
+  /// l'agglomération bordelaise, ex. Pessac/Mérignac) que le SAV à
+  /// planifier — suggère un jour où regrouper les déplacements plutôt que
+  /// de choisir une date au hasard.
   bool _isNearbyDay(DateTime day) {
     final target = _targetPostalCode;
     if (target == null) return false;
+    final targetZone = postalCodeZone(target);
     return _eventsForDay(day).any((event) {
       final eventPostalCode = _postalCodeRegExp
           .firstMatch(event.location)
           ?.group(0);
-      return eventPostalCode == target;
+      if (eventPostalCode == null) return false;
+      return postalCodeZone(eventPostalCode) == targetZone;
     });
   }
 

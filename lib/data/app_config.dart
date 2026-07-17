@@ -32,6 +32,52 @@ const int kDefaultInterventionDurationMinutes = 60;
 /// (CONFIG.IDS.CALENDAR) pour la création effective des RDV.
 const String kJoelCalendarId = 'joel.pouvereau@rpimenuiserie.com';
 
+/// Regroupe les codes postaux de l'agglomération bordelaise (et sa
+/// périphérie proche) dans une même "zone", pour la suggestion "Joël est
+/// déjà dans le secteur" : deux communes limitrophes (ex. Pessac 33600 et
+/// Mérignac 33700) ont des codes postaux différents mais sont à quelques
+/// minutes l'une de l'autre. Alternative gratuite à une vraie distance GPS
+/// (qui nécessiterait l'API Geocoding, payante au-delà du quota gratuit et
+/// donc écartée). Un code postal absent de cette table n'est comparé qu'à
+/// lui-même (comportement d'origine, pas de zone élargie).
+///
+/// À compléter à la main si RPI intervient régulièrement dans un autre
+/// secteur (liste non exhaustive, centrée sur Bordeaux Métropole).
+const Map<String, String> kPostalCodeZones = {
+  // Bordeaux intra-muros
+  '33000': 'bordeaux-metropole',
+  '33100': 'bordeaux-metropole',
+  '33200': 'bordeaux-metropole',
+  '33300': 'bordeaux-metropole',
+  '33800': 'bordeaux-metropole',
+  // Rive gauche / périphérie proche
+  '33600': 'bordeaux-metropole', // Pessac
+  '33700': 'bordeaux-metropole', // Mérignac
+  '33400': 'bordeaux-metropole', // Talence
+  '33170': 'bordeaux-metropole', // Gradignan
+  '33130': 'bordeaux-metropole', // Bègles
+  '33140': 'bordeaux-metropole', // Villenave-d'Ornon
+  '33610': 'bordeaux-metropole', // Cestas / Canéjan
+  '33185': 'bordeaux-metropole', // Le Haillan
+  '33127': 'bordeaux-metropole', // Saint-Jean-d'Illac
+  // Rive droite / périphérie proche
+  '33150': 'bordeaux-metropole', // Cenon
+  '33310': 'bordeaux-metropole', // Lormont
+  '33270': 'bordeaux-metropole', // Floirac
+  '33370': 'bordeaux-metropole', // Artigues / Tresses / Yvrac
+  // Nord Bordeaux
+  '33520': 'bordeaux-metropole', // Bruges
+  '33110': 'bordeaux-metropole', // Le Bouscat
+  '33320': 'bordeaux-metropole', // Eysines
+  '33290': 'bordeaux-metropole', // Blanquefort
+  '33160': 'bordeaux-metropole', // Saint-Médard-en-Jalles / Le Taillan-Médoc
+};
+
+/// Résout la zone d'un code postal (voir [kPostalCodeZones]) — retourne le
+/// code lui-même s'il n'est répertorié dans aucune zone.
+String postalCodeZone(String postalCode) =>
+    kPostalCodeZones[postalCode] ?? postalCode;
+
 /// Mapping des colonnes du Google Sheet "SAV diffus" (voir section 3 du doc
 /// de lancement). Les lettres de colonnes sont converties en index 0-based
 /// par [SavColumns.indexOf].
