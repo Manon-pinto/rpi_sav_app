@@ -18,17 +18,30 @@ class GeocodedAddress {
 class GeocodingService {
   static const _baseUrl = 'https://nominatim.openstreetmap.org/search';
 
+  /// Numéros de téléphone français (fixe/mobile, avec ou sans séparateurs) —
+  /// à retirer du texte avant géocodage, sinon ils polluent la recherche.
+  static final _phoneRegExp = RegExp(
+    r'\b0[1-9](?:[ .-]?\d{2}){4}\b',
+  );
+
   /// Retourne `null` si l'adresse n'a pas pu être résolue (adresse trop
   /// vague, service indisponible, etc.) — non bloquant pour le reste de
   /// l'écran, la carte est juste masquée dans ce cas.
   Future<GeocodedAddress?> geocode(String address) async {
-    final trimmed = address.trim();
-    if (trimmed.isEmpty) return null;
+    // La colonne source mélange souvent nom du client, adresse et
+    // téléphone sur une seule ligne — on retire le téléphone (bruit pur
+    // pour la recherche) et on aplatit les retours à la ligne.
+    final cleaned = address
+        .replaceAll(_phoneRegExp, ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (cleaned.isEmpty) return null;
 
     final uri = Uri.parse(_baseUrl).replace(queryParameters: {
-      'q': trimmed,
+      'q': cleaned,
       'format': 'json',
       'limit': '1',
+      'countrycodes': 'fr',
     });
 
     try {
