@@ -10,7 +10,7 @@ Sheet existant et au calendrier de Joël, sans double saisie.*
 | | |
 |---|---|
 | Rédigé par | Manon PINTO |
-| Date | 15/07/2026 |
+| Date | 20/07/2026 |
 | Destinataire | Direction RPI Menuiserie |
 
 ---
@@ -38,6 +38,19 @@ un seul geste, avec mise à jour automatique du Google Sheet et du calendrier.
 - **Synchronisation automatique du calendrier de Joël**, y compris pour les
   RDV pris depuis l'app (contrainte technique Google contournée par un
   script complémentaire, voir doc de passation).
+- **Alerte en cas de conflit de créneau** : si le créneau choisi chevauche
+  un rendez-vous déjà existant, il n'écrase rien — Cyril reçoit un mail
+  automatique pour replanifier.
+- **Suggestion de secteur** : le calendrier de Joël met en évidence les
+  jours où il est déjà dans le secteur du SAV à planifier (communes
+  limitrophes de l'agglomération bordelaise), pour regrouper les
+  déplacements.
+- **Repérage sur carte** : une petite carte (gratuite, sans abonnement)
+  situe l'adresse du client final, avec un lien direct vers l'itinéraire
+  Google Maps.
+- **Gestion des comptes autorisés** (réservée au compte admin) : ajouter ou
+  retirer un compte pouvant se connecter à l'app se fait maintenant depuis
+  l'écran de monitoring, sans intervention technique.
 - **Suivi des erreurs et de l'activité** (réservé au compte admin) : tableau
   de bord technique montrant les erreurs survenues, l'activité récente par
   compte, et la dernière connexion de chacun.
@@ -85,6 +98,10 @@ bout par un utilisateur final sur toutes les sections.
   "Accepté", est la condition pour qu'un SAV apparaisse dans l'app — un
   changement de convention dans le Sheet sans en informer le développeur
   casserait ce filtre.
+- La carte de repérage dépend d'un service gratuit tiers (OpenStreetMap) et
+  de la qualité de l'adresse saisie dans le Sheet — si l'adresse est trop
+  incomplète, la carte peut ne pas se positionner précisément (elle reste
+  alors masquée, sans bloquer le reste de l'écran).
 
 ## 7. Suite possible
 
@@ -99,5 +116,5 @@ bout par un utilisateur final sur toutes les sections.
 | Rédigé par | Validé par |
 |---|---|
 | Nom : PINTO Manon | Nom : |
-| Date : 15/07/2026 | Date : |
+| Date : 20/07/2026 | Date : |
 | | Signature : |

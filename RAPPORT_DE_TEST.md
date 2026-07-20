@@ -6,10 +6,10 @@ avec quel résultat.
 
 Complète le tableau "Résultats" en bas après chaque session de test.
 
-**Dernière mise à jour** : 15/07/2026, après correctifs sur l'écriture
-Google Sheets, le déplacement de la création du calendrier vers Apps
-Script, la mise en cache du jeton de connexion et l'ajout du monitoring
-admin. Appli déployée sur https://rpi-sav-app.web.app.
+**Dernière mise à jour** : 20/07/2026, après ajout de la carte de repérage
+d'adresse, de la suggestion de secteur (jours où Joël est déjà à
+proximité) et de la gestion des comptes autorisés depuis l'écran admin.
+Appli déployée sur https://rpi-sav-app.web.app.
 
 ## Prérequis avant de commencer
 
@@ -96,6 +96,18 @@ admin. Appli déployée sur https://rpi-sav-app.web.app.
 | 4b.6 | Rouvrir ce même SAV plus tard et choisir une date **seule** (sans heure), valider | La date s'enregistre sur la ligne sans effacer une éventuelle heure déjà présente, et réciproquement |
 | 4b.7 | Compléter ensuite l'heure manquante et valider | Le bouton redevient "Confirmer", le RDV est créé (section 4) |
 
+### 4ter. Carte de repérage et suggestion de secteur
+
+| # | Étape | Résultat attendu |
+|---|-------|-------------------|
+| 4c.1 | Ouvrir un SAV dont l'adresse (col. AF) est complète (numéro + rue + code postal + ville) | Une petite carte s'affiche en haut de l'écran, avec un repère sur l'adresse |
+| 4c.2 | Cliquer sur "Ouvrir l'itinéraire" | Ouvre Google Maps dans un nouvel onglet, centré sur l'adresse |
+| 4c.3 | Ouvrir un SAV dont l'adresse est incomplète ou dont le nom de rue ne correspond pas exactement à OpenStreetMap | La carte se recentre au moins sur la bonne ville (code postal + ville) ; si vraiment aucune correspondance, la carte est masquée sans bloquer le reste de l'écran |
+| 4c.4 | Sur l'écran de planification, vérifier le mini calendrier "Disponibilités de Joël" | Un point orange marque les jours où Joël a déjà un RDV ; un point vert marque les jours où ce RDV est dans le même secteur (code postal ou commune limitrophe) que le SAV à planifier |
+| 4c.5 | Vérifier le bandeau vert au-dessus du calendrier | Ne liste que des dates **à venir** (jamais une date déjà passée) |
+| 4c.6 | Cliquer sur un jour marqué d'un point vert | Le RDV concerné est mis en évidence (encadré vert) dans le détail du jour |
+| 4c.7 | Cliquer sur une date du bandeau vert | La date est sélectionnée automatiquement dans le champ "Date" |
+
 ## 5. Cas limites et non-régression
 
 | # | Étape | Résultat attendu |
@@ -116,8 +128,12 @@ admin. Appli déployée sur https://rpi-sav-app.web.app.
 | 6.2 | Ouvrir cet écran | 3 onglets : Erreurs / Activité / Comptes |
 | 6.3 | Onglet Erreurs | Liste les erreurs Flutter/Sheets non gérées, les plus récentes en premier, avec contexte et stack trace dépliable |
 | 6.4 | Onglet Activité | Compteurs des 7 derniers jours (`sav_planned`, `controle_qualite`) + historique |
-| 6.5 | Onglet Comptes | Dernière connexion par compte, avec version de l'app utilisée |
+| 6.5 | Onglet Comptes | Affiche les 3 comptes de base (non modifiables), les comptes ajoutés le cas échéant, et plus bas la dernière connexion par compte avec la version de l'app utilisée |
 | 6.6 | Provoquer une erreur (ex. couper le réseau puis planifier un SAV) | L'erreur apparaît dans l'onglet Erreurs après reconnexion |
+| 6.7 | Onglet Comptes : ajouter un nouvel email dans le champ prévu, cliquer "Ajouter" | L'email apparaît immédiatement dans la liste "Comptes ajoutés depuis cet écran" |
+| 6.8 | Se connecter (dans un autre navigateur/session) avec ce nouveau compte | La connexion réussit, comme pour un compte de base |
+| 6.9 | Retirer ce compte (bouton de suppression sur le badge, confirmer) | Le compte disparaît de la liste |
+| 6.10 | Retenter une connexion avec ce compte retiré | La connexion est refusée, comme pour un compte jamais autorisé |
 
 ## 7. Icône et apparence
 
@@ -139,7 +155,7 @@ admin. Appli déployée sur https://rpi-sav-app.web.app.
 
 ## Résultats des vérifications automatiques
 
-Exécutées le 15/07/2026 par Claude.
+Exécutées le 20/07/2026 par Claude.
 
 | Vérification | Commande | Résultat |
 |---|---|---|
