@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../data/activity_logger.dart';
 import '../data/allowed_accounts_service.dart';
 import '../data/app_config.dart';
 import '../theme/app_colors.dart';
@@ -233,8 +235,14 @@ class _AccountsTab extends StatelessWidget {
         _AllowedAccountsManager(),
         SizedBox(height: 24),
         Text(
-          'Activité récente',
+          'Dernière connexion par compte',
           style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Pour l\'historique complet des connexions et des actions '
+          '(qui a fait quoi, avec l\'horodatage), voir l\'onglet "Activité".',
+          style: TextStyle(fontSize: 12, color: AppColors.muted),
         ),
         SizedBox(height: 8),
         _RecentActivityList(),
@@ -243,9 +251,12 @@ class _AccountsTab extends StatelessWidget {
   }
 }
 
-/// Gestion des comptes autorisés en plus des 3 comptes de base (fixés dans
-/// le code, non modifiables ici pour éviter un verrouillage accidentel de
-/// tout le monde) — ajout/suppression immédiats, sans redéploiement.
+/// Gestion des comptes autorisés : les 3 comptes de base ([kAllowedEmails],
+/// fixés dans le code) peuvent être suspendus (mais pas supprimés — ils
+/// redeviendraient actifs au prochain déploiement) ; les comptes ajoutés
+/// peuvent être suspendus ou retirés complètement. Toute action est
+/// journalisée (onglet Activité) et un compte ne peut pas s'auto-suspendre
+/// ni s'auto-retirer, pour éviter un verrouillage accidentel.
 class _AllowedAccountsManager extends StatefulWidget {
   const _AllowedAccountsManager();
 
@@ -278,6 +289,7 @@ class _AllowedAccountsManagerState extends State<_AllowedAccountsManager> {
     });
     try {
       await AllowedAccountsService.addEmail(email);
+      await ActivityLogger.logEvent('account_added', details: {'email': email});
       _emailController.clear();
     } catch (error) {
       setState(() => _error = error.toString());
@@ -286,7 +298,60 @@ class _AllowedAccountsManagerState extends State<_AllowedAccountsManager> {
     }
   }
 
+  bool _isSelf(String email) =>
+      FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase() ==
+      email;
+
+  Future<void> _toggleStatus(AllowedAccountEntry entry) async {
+    if (_isSelf(entry.email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu ne peux pas suspendre ton propre compte.'),
+        ),
+      );
+      return;
+    }
+    final suspending = entry.status == AccountStatus.active;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(suspending ? 'Suspendre ce compte ?' : 'Réactiver ce compte ?'),
+        content: Text(
+          suspending
+              ? '${entry.email} ne pourra plus se connecter tant qu\'il '
+                  'n\'est pas réactivé.'
+              : '${entry.email} pourra de nouveau se connecter.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(suspending ? 'Suspendre' : 'Réactiver'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final newStatus = suspending ? AccountStatus.suspended : AccountStatus.active;
+    await AllowedAccountsService.setStatus(entry.email, newStatus);
+    await ActivityLogger.logEvent(
+      suspending ? 'account_suspended' : 'account_reactivated',
+      details: {'email': entry.email},
+    );
+  }
+
   Future<void> _confirmRemove(String email) async {
+    if (_isSelf(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu ne peux pas retirer ton propre compte.'),
+        ),
+      );
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -308,7 +373,8 @@ class _AllowedAccountsManagerState extends State<_AllowedAccountsManager> {
       ),
     );
     if (confirmed == true) {
-      await AllowedAccountsService.removeEmail(email);
+      await AllowedAccountsService.deleteEntry(email);
+      await ActivityLogger.logEvent('account_removed', details: {'email': email});
     }
   }
 
@@ -324,56 +390,69 @@ class _AllowedAccountsManagerState extends State<_AllowedAccountsManager> {
               'Comptes autorisés',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             const Text(
-              'Comptes de base (non modifiables ici) :',
+              'Les comptes de base peuvent être suspendus mais pas retirés '
+              '(ils redeviennent actifs au prochain déploiement) ; les '
+              'comptes ajoutés peuvent être suspendus ou retirés.',
               style: TextStyle(fontSize: 12, color: AppColors.muted),
             ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final email in kAllowedEmails) Chip(label: Text(email)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Comptes ajoutés depuis cet écran :',
-              style: TextStyle(fontSize: 12, color: AppColors.muted),
-            ),
-            const SizedBox(height: 4),
-            StreamBuilder<List<String>>(
-              stream: AllowedAccountsService.watchExtraEmails(),
+            const SizedBox(height: 12),
+            StreamBuilder<List<AllowedAccountEntry>>(
+              stream: AllowedAccountsService.watchAll(kAllowedEmails),
               builder: (context, snapshot) {
-                final emails = snapshot.data ?? const [];
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                final entries = snapshot.data ?? const [];
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    entries.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: LinearProgressIndicator(),
                   );
                 }
-                if (emails.isEmpty) {
-                  return const Text(
-                    'Aucun compte supplémentaire pour le moment.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13),
-                  );
-                }
-                return Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                return Column(
                   children: [
-                    for (final email in emails)
-                      Chip(
-                        label: Text(email),
-                        onDeleted: () => _confirmRemove(email),
-                        deleteIcon: const Icon(Icons.close, size: 16),
+                    for (final entry in entries)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(entry.email),
+                        subtitle: Text(
+                          [
+                            entry.isBase ? 'Compte de base' : 'Compte ajouté',
+                            entry.status == AccountStatus.active
+                                ? 'Actif'
+                                : 'Suspendu',
+                          ].join(' · '),
+                          style: TextStyle(
+                            color: entry.status == AccountStatus.active
+                                ? AppColors.muted
+                                : AppColors.danger,
+                          ),
+                        ),
+                        trailing: Wrap(
+                          spacing: 4,
+                          children: [
+                            TextButton(
+                              onPressed: () => _toggleStatus(entry),
+                              child: Text(
+                                entry.status == AccountStatus.active
+                                    ? 'Suspendre'
+                                    : 'Réactiver',
+                              ),
+                            ),
+                            if (!entry.isBase)
+                              IconButton(
+                                onPressed: () => _confirmRemove(entry.email),
+                                icon: const Icon(Icons.close, size: 18),
+                                tooltip: 'Retirer',
+                              ),
+                          ],
+                        ),
                       ),
                   ],
                 );
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
