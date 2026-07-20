@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../firebase_options.dart';
+import 'allowed_accounts_service.dart';
 import 'app_config.dart';
 
 /// Authentification Google Workspace pour Joël, avec les scopes Sheets et
@@ -57,7 +58,7 @@ class FirebaseAuthService {
         scopeHint: _workspaceSignInScopes,
       );
       final email = account.email.trim().toLowerCase();
-      if (!kAllowedEmails.contains(email)) {
+      if (!await _isAllowedEmail(email)) {
         await _googleSignIn.signOut();
         throw FirebaseAuthException(
           code: 'unauthorized-account',
@@ -193,12 +194,29 @@ class FirebaseAuthService {
 
   Future<void> _ensureWorkspaceAccount(String? rawEmail) async {
     final email = rawEmail?.trim().toLowerCase() ?? '';
-    if (kAllowedEmails.contains(email)) return;
+    if (await _isAllowedEmail(email)) return;
     await _auth.signOut();
     throw FirebaseAuthException(
       code: 'unauthorized-account',
       message: 'Ce compte Google n\'est pas autorisé sur cette application.',
     );
+  }
+
+  /// Autorisé si le compte fait partie des 3 comptes de base ([kAllowedEmails],
+  /// fixés dans le code) ou de la liste additionnelle gérée depuis l'écran
+  /// admin ([AllowedAccountsService]). Le second appel Firestore n'a lieu
+  /// que si le compte n'est pas déjà dans la liste de base, pour ne pas
+  /// ralentir la connexion des comptes usuels.
+  Future<bool> _isAllowedEmail(String email) async {
+    if (kAllowedEmails.contains(email)) return true;
+    try {
+      final extra = await AllowedAccountsService.fetchExtraEmails();
+      return extra.contains(email);
+    } catch (_) {
+      // Si Firestore est injoignable, on ne bloque pas les comptes de base
+      // mais on refuse les comptes additionnels par prudence.
+      return false;
+    }
   }
 
   String? _googleClientId() {

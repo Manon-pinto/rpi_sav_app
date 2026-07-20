@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../data/allowed_accounts_service.dart';
+import '../data/app_config.dart';
 import '../theme/app_colors.dart';
 import '../widgets/rpi_app_bar_title.dart';
 
@@ -225,6 +227,194 @@ class _AccountsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: const [
+        _AllowedAccountsManager(),
+        SizedBox(height: 24),
+        Text(
+          'Activité récente',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        SizedBox(height: 8),
+        _RecentActivityList(),
+      ],
+    );
+  }
+}
+
+/// Gestion des comptes autorisés en plus des 3 comptes de base (fixés dans
+/// le code, non modifiables ici pour éviter un verrouillage accidentel de
+/// tout le monde) — ajout/suppression immédiats, sans redéploiement.
+class _AllowedAccountsManager extends StatefulWidget {
+  const _AllowedAccountsManager();
+
+  @override
+  State<_AllowedAccountsManager> createState() =>
+      _AllowedAccountsManagerState();
+}
+
+class _AllowedAccountsManagerState extends State<_AllowedAccountsManager> {
+  final _emailController = TextEditingController();
+  String? _error;
+  bool _adding = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addEmail() async {
+    final email = _emailController.text.trim().toLowerCase();
+    if (email.isEmpty) return;
+    if (!email.contains('@')) {
+      setState(() => _error = 'Adresse email invalide.');
+      return;
+    }
+    setState(() {
+      _adding = true;
+      _error = null;
+    });
+    try {
+      await AllowedAccountsService.addEmail(email);
+      _emailController.clear();
+    } catch (error) {
+      setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  Future<void> _confirmRemove(String email) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Retirer ce compte ?'),
+        content: Text(
+          '$email ne pourra plus se connecter à l\'application après '
+          'cette action.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Retirer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await AllowedAccountsService.removeEmail(email);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Comptes autorisés',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Comptes de base (non modifiables ici) :',
+              style: TextStyle(fontSize: 12, color: AppColors.muted),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final email in kAllowedEmails) Chip(label: Text(email)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Comptes ajoutés depuis cet écran :',
+              style: TextStyle(fontSize: 12, color: AppColors.muted),
+            ),
+            const SizedBox(height: 4),
+            StreamBuilder<List<String>>(
+              stream: AllowedAccountsService.watchExtraEmails(),
+              builder: (context, snapshot) {
+                final emails = snapshot.data ?? const [];
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: LinearProgressIndicator(),
+                  );
+                }
+                if (emails.isEmpty) {
+                  return const Text(
+                    'Aucun compte supplémentaire pour le moment.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  );
+                }
+                return Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final email in emails)
+                      Chip(
+                        label: Text(email),
+                        onDeleted: () => _confirmRemove(email),
+                        deleteIcon: const Icon(Icons.close, size: 16),
+                      ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nouveau compte (email @rpimenuiserie.com)',
+                      isDense: true,
+                    ),
+                    onSubmitted: (_) => _addEmail(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _adding ? null : _addEmail,
+                  child: _adding
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Ajouter'),
+                ),
+              ],
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: const TextStyle(color: AppColors.danger)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentActivityList extends StatelessWidget {
+  const _RecentActivityList();
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('user_activity')
@@ -244,10 +434,11 @@ class _AccountsTab extends StatelessWidget {
         }
         final docs = snapshot.data?.docs ?? const [];
         if (docs.isEmpty) {
-          return const Center(child: Text('Aucun compte vu pour le moment.'));
+          return const Text('Aucun compte vu pour le moment.');
         }
         return ListView.separated(
-          padding: const EdgeInsets.all(16),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: docs.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, index) {
