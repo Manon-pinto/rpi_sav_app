@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
   test:
@@ -18,28 +18,10 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-
-  deploy:
-    name: Deploy to Firebase Hosting
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write # nécessaire pour l'auth OIDC sans clé (Workload Identity Federation)
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      - run: flutter pub get
       - run: flutter build web --release
-      - id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          project_id: rpi-sav-app
-          workload_identity_provider: projects/446423568154/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-deploy@rpi-sav-app.iam.gserviceaccount.com
-      - run: npx firebase-tools deploy --only hosting --project rpi-sav-app --non-interactive
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+
+# Déploiement : cette app est fusionnée dans le portail RPI (rpi-portail),
+# sous /apps/sav/. Le déploiement réel se fait via le script
+# build-and-merge.sh du dépôt rpi-portail. L'ancien job "deploy" ci-dessus
+# ciblait le projet Firebase rpi-sav-app (obsolète depuis la migration
+# vers rpi-portail) et a été retiré.
