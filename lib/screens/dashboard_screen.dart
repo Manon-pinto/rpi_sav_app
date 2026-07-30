@@ -59,21 +59,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const RpiAppBarTitle('Tableau de bord'),
         actions: [
-          IconButton(
-            tooltip: 'Rendez-vous à venir (replanifier)',
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => SavPlannedListScreen(
-                    authService: widget.authService,
-                    sheetsService: widget.sheetsService,
-                  ),
-                ),
-              );
-              await _refresh();
-            },
-            icon: const Icon(Icons.event_repeat),
-          ),
           if (widget.authService.currentUser?.email == 'admin@rpimenuiserie.com')
             IconButton(
               tooltip: 'Erreurs techniques',
@@ -158,6 +143,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const Text(
                     'Voici l\'état de tes interventions SAV.',
                     style: TextStyle(color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SavPlannedListScreen(
+                            authService: widget.authService,
+                            sheetsService: widget.sheetsService,
+                          ),
+                        ),
+                      );
+                      await _refresh();
+                    },
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(Icons.event_repeat),
+                    label: const Text('Rendez-vous à venir — replanifier'),
                   ),
                   const SizedBox(height: 20),
                   GridView.count(
@@ -263,42 +267,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                         ),
-                  const SizedBox(height: 28),
-                  Card(
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.accent.withValues(
-                          alpha: 0.14,
-                        ),
-                        foregroundColor: AppColors.accent,
-                        child: const Icon(Icons.event_repeat),
-                      ),
-                      title: const Text(
-                        'Déplacer un rendez-vous',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: const Text(
-                        'Rendez-vous déjà planifiés — imprévu, changement '
-                        'de créneau...',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => SavPlannedListScreen(
-                              authService: widget.authService,
-                              sheetsService: widget.sheetsService,
-                            ),
-                          ),
-                        );
-                        await _refresh();
-                      },
-                    ),
-                  ),
                 ],
               ),
             );
