@@ -9,6 +9,7 @@ import '../theme/app_layout.dart';
 import '../widgets/rpi_app_bar_title.dart';
 import 'errors_screen.dart';
 import 'sav_list_screen.dart';
+import 'sav_planned_list_screen.dart';
 import 'sav_planning_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -247,6 +248,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                         ),
+                  const SizedBox(height: 28),
+                  Card(
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: AppColors.accent.withValues(
+                          alpha: 0.14,
+                        ),
+                        foregroundColor: AppColors.accent,
+                        child: const Icon(Icons.event_repeat),
+                      ),
+                      title: const Text(
+                        'Déplacer un rendez-vous',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: const Text(
+                        'Rendez-vous déjà planifiés — imprévu, changement '
+                        'de créneau...',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SavPlannedListScreen(
+                              authService: widget.authService,
+                              sheetsService: widget.sheetsService,
+                            ),
+                          ),
+                        );
+                        await _refresh();
+                      },
+                    ),
+                  ),
                 ],
               ),
             );

@@ -11,9 +11,25 @@ class GoogleSheetsService {
   static const _headerRange = "'$kSavSheetName'!A1:ZZ1";
   static const _dataRange = "'$kSavSheetName'!A2:ZZ";
 
+  /// SAV acceptés, confiés à Joël, pas encore planifiés (pas de date/heure).
   Future<List<SavIntervention>> fetchAcceptedInterventions(
     String accessToken,
-  ) async {
+  ) {
+    return _fetchInterventions(accessToken, wantPlanned: false);
+  }
+
+  /// SAV acceptés, confiés à Joël, déjà planifiés (date/heure renseignées) —
+  /// permet de retrouver un RDV existant pour le déplacer en cas d'imprévu.
+  Future<List<SavIntervention>> fetchPlannedInterventions(
+    String accessToken,
+  ) {
+    return _fetchInterventions(accessToken, wantPlanned: true);
+  }
+
+  Future<List<SavIntervention>> _fetchInterventions(
+    String accessToken, {
+    required bool wantPlanned,
+  }) async {
     final client = GoogleAuthorizedClient(accessToken);
     try {
       final api = sheets.SheetsApi(client);
@@ -62,11 +78,9 @@ class GoogleSheetsService {
           row,
           SavColumns.indexOf(SavColumns.heureIntervention),
         );
-        // Une fois planifié, le SAV sort de la liste "à planifier" — cette
-        // V1 ne gère pas la modification d'un RDV déjà posé (voir doc §10).
-        if (dateIntervention.isNotEmpty && heureIntervention.isNotEmpty) {
-          continue;
-        }
+        final isPlanned =
+            dateIntervention.isNotEmpty && heureIntervention.isNotEmpty;
+        if (isPlanned != wantPlanned) continue;
         final affecteA = affecteALabel;
 
         final clientFinal = [

@@ -47,6 +47,12 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
   String? _error;
   Map<String, List<String>> _dropdownOptions = {};
 
+  /// Vrai si ce RDV avait déjà une date/heure au moment de l'ouverture de
+  /// l'écran — permet d'adapter les libellés ("Replanifier" plutôt que
+  /// "Planifier") quand on vient de la liste des RDV déjà posés, pour un
+  /// déplacement en cas d'imprévu.
+  late final bool _isReschedule = widget.intervention.isPlanned;
+
   // Agenda de Joël sous forme de mini calendrier mensuel, chargé dès
   // l'ouverture de l'écran — pour que Clara/Joël voie ses disponibilités
   // en permanence, indépendamment de la date choisie pour l'intervention.
@@ -62,9 +68,26 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
     _dureeController.text = widget.intervention.dureeIntervention;
     _vehiculeController.text = widget.intervention.vehicule;
     _renfortController.text = widget.intervention.renfort;
+    if (_isReschedule) {
+      _date = widget.intervention.plannedDate;
+      _heure = _parseHeure(widget.intervention.heureIntervention);
+      _selectedDay = _date;
+      if (_date != null) _focusedMonth = _date!;
+    }
     _loadDropdownOptions();
     _loadMonthEvents(_focusedMonth);
     _loadInterventionLocation();
+  }
+
+  /// Parse le format "9h30" utilisé en colonne AE en [TimeOfDay], ou null si
+  /// non reconnu.
+  TimeOfDay? _parseHeure(String value) {
+    final match = RegExp(r'^(\d{1,2})h(\d{2})$').firstMatch(value.trim());
+    if (match == null) return null;
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    if (hour == null || minute == null) return null;
+    return TimeOfDay(hour: hour, minute: minute);
   }
 
   /// Géocode l'adresse du SAV (une seule fois à l'ouverture de l'écran) pour
@@ -270,11 +293,19 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Enregistré sans rendez-vous'),
-            content: const Text(
-              'Durée, véhicule et renfort ont été enregistrés. Le SAV reste '
-              'dans la liste "à planifier" jusqu\'à ce qu\'une date soit '
-              'fixée.',
+            title: Text(
+              _isReschedule
+                  ? 'Rendez-vous annulé'
+                  : 'Enregistré sans rendez-vous',
+            ),
+            content: Text(
+              _isReschedule
+                  ? 'La date et l\'heure ont été retirées. Le SAV repasse '
+                        'dans la liste "à planifier" jusqu\'à ce qu\'un '
+                        'nouveau créneau soit fixé.'
+                  : 'Durée, véhicule et renfort ont été enregistrés. Le SAV '
+                        'reste dans la liste "à planifier" jusqu\'à ce '
+                        'qu\'une date soit fixée.',
             ),
             actions: [
               TextButton(
@@ -348,10 +379,19 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Planifier l\'intervention',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            Text(
+              _isReschedule
+                  ? 'Déplacer le rendez-vous'
+                  : 'Planifier l\'intervention',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
+            if (_isReschedule) ...[
+              const SizedBox(height: 4),
+              const Text(
+                'Choisis une nouvelle date et/ou heure en cas d\'imprévu.',
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -380,6 +420,20 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                 ),
               ],
             ),
+            if (_isReschedule && (_date != null || _heure != null)) ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => setState(() {
+                    _date = null;
+                    _heure = null;
+                    _selectedDay = null;
+                  }),
+                  icon: const Icon(Icons.event_busy, size: 18),
+                  label: const Text('Annuler ce rendez-vous'),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             _fieldFor(
               columnKey: SavColumns.dureeIntervention,
@@ -417,8 +471,12 @@ class _SavPlanningScreenState extends State<SavPlanningScreen> {
                     )
                   : Text(
                       _date != null && _heure != null
-                          ? 'Confirmer et ajouter au calendrier'
-                          : 'Enregistrer sans rendez-vous',
+                          ? (_isReschedule
+                                ? 'Confirmer le nouveau créneau'
+                                : 'Confirmer et ajouter au calendrier')
+                          : (_isReschedule
+                                ? 'Confirmer l\'annulation'
+                                : 'Enregistrer sans rendez-vous'),
                     ),
             ),
             const SizedBox(height: 20),
