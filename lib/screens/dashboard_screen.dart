@@ -59,6 +59,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const RpiAppBarTitle('Tableau de bord'),
         actions: [
+          IconButton(
+            tooltip: 'Rendez-vous à venir (replanifier)',
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SavPlannedListScreen(
+                    authService: widget.authService,
+                    sheetsService: widget.sheetsService,
+                  ),
+                ),
+              );
+              await _refresh();
+            },
+            icon: const Icon(Icons.event_repeat),
+          ),
           if (widget.authService.currentUser?.email == 'admin@rpimenuiserie.com')
             IconButton(
               tooltip: 'Erreurs techniques',

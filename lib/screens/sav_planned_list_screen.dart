@@ -38,9 +38,17 @@ class _SavPlannedListScreenState extends State<SavPlannedListScreen> {
     final interventions = await widget.sheetsService.fetchPlannedInterventions(
       token,
     );
+    // Seuls les RDV pas encore passés sont proposés à la replanification —
+    // inutile de déplacer une intervention déjà réalisée.
+    final today = DateTime.now();
+    final startOfToday = DateTime(today.year, today.month, today.day);
+    final upcoming = interventions.where((intervention) {
+      final date = intervention.plannedDate;
+      return date == null || !date.isBefore(startOfToday);
+    }).toList();
     // Les prochains rendez-vous en premier, pour repérer rapidement ceux à
     // déplacer en priorité.
-    interventions.sort((a, b) {
+    upcoming.sort((a, b) {
       final dateA = a.plannedDate;
       final dateB = b.plannedDate;
       if (dateA == null && dateB == null) return 0;
@@ -48,7 +56,7 @@ class _SavPlannedListScreenState extends State<SavPlannedListScreen> {
       if (dateB == null) return -1;
       return dateA.compareTo(dateB);
     });
-    return interventions;
+    return upcoming;
   }
 
   Future<void> _refresh() async {
@@ -63,7 +71,7 @@ class _SavPlannedListScreenState extends State<SavPlannedListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const RpiAppBarTitle('Rendez-vous planifiés'),
+        title: const RpiAppBarTitle('Rendez-vous à venir'),
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -95,7 +103,7 @@ class _SavPlannedListScreenState extends State<SavPlannedListScreen> {
               return ListView(
                 children: const [
                   SizedBox(height: 120),
-                  Center(child: Text('Aucun rendez-vous planifié.')),
+                  Center(child: Text('Aucun rendez-vous à venir.')),
                 ],
               );
             }
