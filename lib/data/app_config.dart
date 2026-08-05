@@ -79,32 +79,35 @@ String postalCodeZone(String postalCode) =>
     kPostalCodeZones[postalCode] ?? postalCode;
 
 /// Mapping des colonnes du Google Sheet "SAV diffus" (voir section 3 du doc
-/// de lancement). Les lettres de colonnes sont converties en index 0-based
-/// par [SavColumns.indexOf].
+/// de lancement). Chaque constante est un fragment (unique) du texte d'en-tête
+/// recherché dans la ligne 1 du Sheet — voir [SavHeaderIndex] — plutôt qu'une
+/// lettre de colonne fixe, pour ne pas se désynchroniser si des colonnes sont
+/// insérées/réordonnées dans le Sheet.
 class SavColumns {
-  static const String numeroSav = 'A';
-  static const String quiOuvre = 'D';
-  static const String nomClient = 'E';
-  static const String refChantier = 'F';
-  static const String probleme = 'I';
+  static const String numeroSav = 'N°SAV';
+  static const String quiOuvre = 'Qui ouvre le SAV';
+  static const String nomClient = 'Nom Client';
+  static const String refChantier = 'Ref. Chantier';
+  static const String probleme = 'Description du problème rencontré';
 
   /// Colonne "Choix livraison" : commentaire libre saisi par les
   /// commerciaux. Affiché à titre informatif ; ce n'est PAS le signal fiable
   /// pour savoir si le SAV est confié à Joël (voir le surlignage rose de la
   /// ligne, détecté via la couleur de fond dans GoogleSheetsService).
-  static const String affecteA = 'L';
-  static const String statutSav = 'O';
-  static const String fournitures = 'Q';
-  static const String etatSav = 'U';
-  static const String interventionARealiser = 'Z';
-  static const String clientFinal = 'AF';
-  static const String adresseIntervention = 'AG';
-  static const String telephone = 'AH';
-  static const String dureeIntervention = 'AA';
-  static const String vehicule = 'AB';
-  static const String renfort = 'AC';
-  static const String dateIntervention = 'AD';
-  static const String heureIntervention = 'AE';
+  static const String affecteA = 'Choix livraison';
+  static const String statutSav = 'Statut SAV';
+  static const String fournitures = 'Fournitures à livrer';
+  static const String etatSav = 'Etat SAV';
+  static const String interventionARealiser = 'Intervention à réaliser';
+
+  /// Colonne unique regroupant "Client final / Adresse d'intervention /
+  /// Téléphone" (cellule multi-lignes dans le Sheet).
+  static const String clientFinal = 'Client final';
+  static const String dureeIntervention = "Durée d'intervention prévue";
+  static const String vehicule = 'Véhicule pour livraison';
+  static const String renfort = 'personnes supplémentaires nécessaires';
+  static const String dateIntervention = "Date d'intervention programmée";
+  static const String heureIntervention = "Heure d'intervention programmée";
 
   /// Colonne technique invisible pour Joël, utilisée comme clé de
   /// correspondance fiable pour retrouver une ligne (au lieu de son index).
@@ -115,14 +118,62 @@ class SavColumns {
 
   /// Valeur de [etatSav] indiquant un SAV clôturé, à exclure de la liste.
   static const String etatCloture = 'Cloturé';
+}
 
-  /// Convertit une référence de colonne façon Sheet ("A", "Z", "AA", "AB"…)
-  /// en index 0-based.
-  static int indexOf(String columnLetters) {
-    var index = 0;
-    for (final rune in columnLetters.toUpperCase().runes) {
-      index = index * 26 + (rune - 'A'.codeUnitAt(0) + 1);
+/// Traduit les noms de colonnes [SavColumns] en index / lettre réels du
+/// Google Sheet, en les recherchant dans la ligne d'en-tête lue à chaque
+/// appel — ainsi, ajouter ou déplacer une colonne dans le Sheet ne désynchronise
+/// plus l'app tant que l'intitulé de chaque colonne suivie reste reconnaissable.
+class SavHeaderIndex {
+  SavHeaderIndex(List<Object?> headerRow)
+      : _headers = [for (final h in headerRow) _normalize('${h ?? ''}')];
+
+  final List<String> _headers;
+
+  /// Index 0-based de la colonne dont l'en-tête contient [columnName], ou -1
+  /// si aucune colonne ne correspond.
+  int indexOf(String columnName) {
+    final needle = _normalize(columnName);
+    return _headers.indexWhere((header) => header.contains(needle));
+  }
+
+  /// Lettre de colonne Sheet (A, B, …, AA, AB…) correspondant à [columnName].
+  /// Lève une erreur explicite si la colonne est introuvable (plutôt que
+  /// d'écrire silencieusement au mauvais endroit).
+  String letterOf(String columnName) {
+    final index = indexOf(columnName);
+    if (index == -1) {
+      throw StateError(
+        'Colonne "$columnName" introuvable dans l\'en-tête du Sheet SAV '
+        '(a-t-elle été renommée ?).',
+      );
     }
-    return index - 1;
+    return columnLetterFromIndex(index);
+  }
+
+  static String columnLetterFromIndex(int index) {
+    var value = index + 1;
+    var letters = '';
+    while (value > 0) {
+      final remainder = (value - 1) % 26;
+      letters = String.fromCharCode(65 + remainder) + letters;
+      value = (value - 1) ~/ 26;
+    }
+    return letters;
+  }
+
+  static String _normalize(String value) {
+    const accented = 'àâäáãåèéêëìíîïòóôöõùúûüçñÀÂÄÁÃÅÈÉÊËÌÍÎÏÒÓÔÖÕÙÚÛÜÇÑ';
+    const plain = 'aaaaaaeeeeiiiiooooouuuucnAAAAAAEEEEIIIIOOOOOUUUUCN';
+    final buffer = StringBuffer();
+    for (final rune in value.replaceAll('\n', ' ').trim().runes) {
+      final index = accented.indexOf(String.fromCharCode(rune));
+      buffer.writeCharCode(index == -1 ? rune : plain.codeUnitAt(index));
+    }
+    return buffer
+        .toString()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 }

@@ -38,7 +38,11 @@ class GoogleSheetsService {
         _headerRange,
       );
       final headerRow = headerResponse.values?.first ?? const [];
-      final idGoogleColumnIndex = _findIdGoogleColumnIndex(headerRow);
+      final headerIndex = SavHeaderIndex(headerRow);
+      final idGoogleColumnIndexRaw = headerIndex.indexOf(SavColumns.idGoogle);
+      final idGoogleColumnIndex = idGoogleColumnIndexRaw == -1
+          ? null
+          : idGoogleColumnIndexRaw;
 
       final dataResponse = await api.spreadsheets.values.get(
         kSavSpreadsheetId,
@@ -58,36 +62,35 @@ class GoogleSheetsService {
         final row = rows[i];
         if (row.isEmpty) continue;
         final rowIndex = i + 2; // +2 : ligne 1 = en-tête, données dès ligne 2.
-        final statut = _cell(row, SavColumns.indexOf(SavColumns.statutSav));
+        final statut = _cell(row, headerIndex.indexOf(SavColumns.statutSav));
         if (!_matches(statut, SavColumns.statutAccepte)) continue;
         final rowColor = i < rowColors.length ? rowColors[i] : null;
         final affecteALabel = _cell(
           row,
-          SavColumns.indexOf(SavColumns.affecteA),
+          headerIndex.indexOf(SavColumns.affecteA),
         );
         final isAssigneJoel =
             _isPinkish(rowColor) || _contains(affecteALabel, 'Joel');
         if (!isAssigneJoel) continue;
-        final etatSav = _cell(row, SavColumns.indexOf(SavColumns.etatSav));
+        final etatSav = _cell(row, headerIndex.indexOf(SavColumns.etatSav));
         if (_contains(etatSav, SavColumns.etatCloture)) continue;
         final dateIntervention = _cell(
           row,
-          SavColumns.indexOf(SavColumns.dateIntervention),
+          headerIndex.indexOf(SavColumns.dateIntervention),
         );
         final heureIntervention = _cell(
           row,
-          SavColumns.indexOf(SavColumns.heureIntervention),
+          headerIndex.indexOf(SavColumns.heureIntervention),
         );
         final isPlanned =
             dateIntervention.isNotEmpty && heureIntervention.isNotEmpty;
         if (isPlanned != wantPlanned) continue;
         final affecteA = affecteALabel;
 
-        final clientFinal = [
-          _cell(row, SavColumns.indexOf(SavColumns.clientFinal)),
-          _cell(row, SavColumns.indexOf(SavColumns.adresseIntervention)),
-          _cell(row, SavColumns.indexOf(SavColumns.telephone)),
-        ].where((part) => part.isNotEmpty).join(' - ');
+        final clientFinal = _cell(
+          row,
+          headerIndex.indexOf(SavColumns.clientFinal),
+        );
 
         interventions.add(
           SavIntervention(
@@ -95,32 +98,32 @@ class GoogleSheetsService {
                 ? 'row-$rowIndex'
                 : _cell(row, idGoogleColumnIndex),
             rowIndex: rowIndex,
-            numeroSav: _cell(row, SavColumns.indexOf(SavColumns.numeroSav)),
-            quiOuvre: _cell(row, SavColumns.indexOf(SavColumns.quiOuvre)),
-            nomClient: _cell(row, SavColumns.indexOf(SavColumns.nomClient)),
+            numeroSav: _cell(row, headerIndex.indexOf(SavColumns.numeroSav)),
+            quiOuvre: _cell(row, headerIndex.indexOf(SavColumns.quiOuvre)),
+            nomClient: _cell(row, headerIndex.indexOf(SavColumns.nomClient)),
             refChantier: _cell(
               row,
-              SavColumns.indexOf(SavColumns.refChantier),
+              headerIndex.indexOf(SavColumns.refChantier),
             ),
-            probleme: _cell(row, SavColumns.indexOf(SavColumns.probleme)),
+            probleme: _cell(row, headerIndex.indexOf(SavColumns.probleme)),
             affecteA: affecteA,
             statutSav: statut,
             fournitures: _cell(
               row,
-              SavColumns.indexOf(SavColumns.fournitures),
+              headerIndex.indexOf(SavColumns.fournitures),
             ),
-            etatSav: _cell(row, SavColumns.indexOf(SavColumns.etatSav)),
+            etatSav: _cell(row, headerIndex.indexOf(SavColumns.etatSav)),
             interventionARealiser: _cell(
               row,
-              SavColumns.indexOf(SavColumns.interventionARealiser),
+              headerIndex.indexOf(SavColumns.interventionARealiser),
             ),
             clientFinal: clientFinal,
             dureeIntervention: _cell(
               row,
-              SavColumns.indexOf(SavColumns.dureeIntervention),
+              headerIndex.indexOf(SavColumns.dureeIntervention),
             ),
-            vehicule: _cell(row, SavColumns.indexOf(SavColumns.vehicule)),
-            renfort: _cell(row, SavColumns.indexOf(SavColumns.renfort)),
+            vehicule: _cell(row, headerIndex.indexOf(SavColumns.vehicule)),
+            renfort: _cell(row, headerIndex.indexOf(SavColumns.renfort)),
             dateIntervention: dateIntervention,
             heureIntervention: heureIntervention,
           ),
@@ -142,35 +145,47 @@ class GoogleSheetsService {
     final client = GoogleAuthorizedClient(accessToken);
     try {
       final api = sheets.SheetsApi(client);
-      final rowIndex = await _resolveRowIndex(api, intervention);
+      final headerResponse = await api.spreadsheets.values.get(
+        kSavSpreadsheetId,
+        _headerRange,
+      );
+      final headerIndex = SavHeaderIndex(
+        headerResponse.values?.first ?? const [],
+      );
+      final rowIndex = await _resolveRowIndex(api, intervention, headerIndex);
 
       final data = <sheets.ValueRange>[
         sheets.ValueRange(
-          range: "'$kSavSheetName'!${SavColumns.dureeIntervention}$rowIndex",
+          range:
+              "'$kSavSheetName'!${headerIndex.letterOf(SavColumns.dureeIntervention)}$rowIndex",
           values: [
             [intervention.dureeIntervention],
           ],
         ),
         sheets.ValueRange(
-          range: "'$kSavSheetName'!${SavColumns.vehicule}$rowIndex",
+          range:
+              "'$kSavSheetName'!${headerIndex.letterOf(SavColumns.vehicule)}$rowIndex",
           values: [
             [intervention.vehicule],
           ],
         ),
         sheets.ValueRange(
-          range: "'$kSavSheetName'!${SavColumns.renfort}$rowIndex",
+          range:
+              "'$kSavSheetName'!${headerIndex.letterOf(SavColumns.renfort)}$rowIndex",
           values: [
             [intervention.renfort],
           ],
         ),
         sheets.ValueRange(
-          range: "'$kSavSheetName'!${SavColumns.dateIntervention}$rowIndex",
+          range:
+              "'$kSavSheetName'!${headerIndex.letterOf(SavColumns.dateIntervention)}$rowIndex",
           values: [
             [intervention.dateIntervention],
           ],
         ),
         sheets.ValueRange(
-          range: "'$kSavSheetName'!${SavColumns.heureIntervention}$rowIndex",
+          range:
+              "'$kSavSheetName'!${headerIndex.letterOf(SavColumns.heureIntervention)}$rowIndex",
           values: [
             [intervention.heureIntervention],
           ],
@@ -205,14 +220,22 @@ class GoogleSheetsService {
     final client = GoogleAuthorizedClient(accessToken);
     try {
       final api = sheets.SheetsApi(client);
+      final headerResponse = await api.spreadsheets.values.get(
+        kSavSpreadsheetId,
+        _headerRange,
+      );
+      final headerIndex = SavHeaderIndex(
+        headerResponse.values?.first ?? const [],
+      );
       final columns = [
         SavColumns.dureeIntervention,
         SavColumns.vehicule,
         SavColumns.renfort,
       ];
+      final letters = [for (final col in columns) headerIndex.letterOf(col)];
       final response = await api.spreadsheets.get(
         kSavSpreadsheetId,
-        ranges: [for (final col in columns) "'$kSavSheetName'!${col}2"],
+        ranges: [for (final letter in letters) "'$kSavSheetName'!${letter}2"],
         $fields: 'sheets.data.rowData.values.dataValidation',
       );
       final rowDataList = response.sheets?.first.data ?? const [];
@@ -277,6 +300,7 @@ class GoogleSheetsService {
   Future<int> _resolveRowIndex(
     sheets.SheetsApi api,
     SavIntervention intervention,
+    SavHeaderIndex headerIndex,
   ) async {
     // Sans ID_GOOGLE exploitable, impossible de relocaliser la ligne de
     // façon fiable (une valeur vide matcherait la première ligne vide de la
@@ -285,15 +309,12 @@ class GoogleSheetsService {
         intervention.idGoogle.startsWith('row-')) {
       return intervention.rowIndex;
     }
-    final headerResponse = await api.spreadsheets.values.get(
-      kSavSpreadsheetId,
-      _headerRange,
-    );
-    final headerRow = headerResponse.values?.first ?? const [];
-    final idGoogleColumnIndex = _findIdGoogleColumnIndex(headerRow);
-    if (idGoogleColumnIndex == null) return intervention.rowIndex;
+    final idGoogleColumnIndex = headerIndex.indexOf(SavColumns.idGoogle);
+    if (idGoogleColumnIndex == -1) return intervention.rowIndex;
 
-    final columnLetter = _columnLetterFromIndex(idGoogleColumnIndex);
+    final columnLetter = SavHeaderIndex.columnLetterFromIndex(
+      idGoogleColumnIndex,
+    );
     final columnResponse = await api.spreadsheets.values.get(
       kSavSpreadsheetId,
       "'$kSavSheetName'!${columnLetter}2:$columnLetter",
@@ -306,25 +327,6 @@ class GoogleSheetsService {
       }
     }
     return intervention.rowIndex;
-  }
-
-  int? _findIdGoogleColumnIndex(List<Object?> headerRow) {
-    for (var i = 0; i < headerRow.length; i++) {
-      final header = '${headerRow[i]}'.trim().toUpperCase();
-      if (header == SavColumns.idGoogle) return i;
-    }
-    return null;
-  }
-
-  String _columnLetterFromIndex(int index) {
-    var value = index + 1;
-    var letters = '';
-    while (value > 0) {
-      final remainder = (value - 1) % 26;
-      letters = String.fromCharCode(65 + remainder) + letters;
-      value = (value - 1) ~/ 26;
-    }
-    return letters;
   }
 
   String _cell(List<Object?> row, int index) {

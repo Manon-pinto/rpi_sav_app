@@ -28,11 +28,37 @@ SavIntervention _buildIntervention({
 }
 
 void main() {
-  test('SavColumns.indexOf convertit les lettres de colonnes', () {
-    expect(SavColumns.indexOf('A'), 0);
-    expect(SavColumns.indexOf('Z'), 25);
-    expect(SavColumns.indexOf('AA'), 26);
-    expect(SavColumns.indexOf('AG'), 32);
+  group('SavHeaderIndex', () {
+    test('retrouve une colonne par un fragment de son en-tête', () {
+      final headerIndex = SavHeaderIndex([
+        'N°SAV',
+        "Durée d'intervention prévue",
+        'Véhicule pour livraison',
+        '# de personnes supplémentaires nécessaires',
+      ]);
+      expect(headerIndex.indexOf(SavColumns.numeroSav), 0);
+      expect(headerIndex.indexOf(SavColumns.dureeIntervention), 1);
+      expect(headerIndex.indexOf(SavColumns.vehicule), 2);
+      expect(headerIndex.indexOf(SavColumns.renfort), 3);
+      expect(headerIndex.letterOf(SavColumns.vehicule), 'C');
+    });
+
+    test('reste valide si une colonne est insérée avant les autres', () {
+      final headerIndex = SavHeaderIndex([
+        'N°SAV',
+        'Nouvelle colonne',
+        "Durée d'intervention prévue",
+        'Véhicule pour livraison',
+      ]);
+      expect(headerIndex.letterOf(SavColumns.dureeIntervention), 'C');
+      expect(headerIndex.letterOf(SavColumns.vehicule), 'D');
+    });
+
+    test('indexOf renvoie -1 pour une colonne introuvable', () {
+      final headerIndex = SavHeaderIndex(['N°SAV']);
+      expect(headerIndex.indexOf(SavColumns.vehicule), -1);
+      expect(() => headerIndex.letterOf(SavColumns.vehicule), throwsStateError);
+    });
   });
 
   group('SavIntervention.isAccepte', () {
